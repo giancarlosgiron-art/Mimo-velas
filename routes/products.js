@@ -4,13 +4,14 @@ const path = require('path');
 const pool = require('../db/database').pool || require('../db/database');
 const { upload, saveProductImage } = require('../middleware/upload');
 const jwt = require('jsonwebtoken');
+const JWT_SECRET = require('../middleware/secret');
 const { authMiddleware } = require('../middleware/auth');
 
 // El catálogo público consulta sin token: no debe ver costos, márgenes ni proveedores
 function isStaff(req) {
   const token = (req.headers['authorization'] || '').split(' ')[1];
   if (!token) return false;
-  try { jwt.verify(token, process.env.JWT_SECRET || 'mimo_dev_secret'); return true; } catch { return false; }
+  try { jwt.verify(token, JWT_SECRET); return true; } catch { return false; }
 }
 const PRIVATE_FIELDS = ['cost_price', 'margin', 'profit', 'supplier_id', 'supplier_name', 'movements'];
 function publicView(p) { const o = { ...p }; PRIVATE_FIELDS.forEach(f => delete o[f]); return o; }

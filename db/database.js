@@ -1,5 +1,6 @@
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -104,10 +105,20 @@ async function initSchema() {
 
   const { rows } = await pool.query('SELECT COUNT(*) as c FROM users');
   if (parseInt(rows[0].c) === 0) {
-    // Contraseñas iniciales desde variables de entorno (en Railway: GIAN_PASSWORD y LUIS_PASSWORD)
+    // Contraseñas iniciales desde variables de entorno (en Railway: GIAN_PASSWORD y LUIS_PASSWORD).
+    // Sin variable: en local se usa 'mimo2026'; en producción se genera una al azar y se muestra en los logs
+    // (el código es público, así que nunca hay una contraseña fija en producción).
+    const isLocal = !process.env.DATABASE_URL || /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL);
+    const initialPassword = (envValue, name) => {
+      if (envValue) return envValue;
+      if (isLocal) return 'mimo2026';
+      const generated = crypto.randomBytes(9).toString('base64url');
+      console.log(`⚠️  ${name}: sin variable de contraseña, se generó esta contraseña inicial: ${generated}`);
+      return generated;
+    };
     const users = [
-      ['Gian', process.env.GIAN_EMAIL || 'gian@mimovelas.cl', process.env.GIAN_PASSWORD || 'mimo2026', 'admin'],
-      ['Luis', process.env.LUIS_EMAIL || 'luis@mimovelas.cl', process.env.LUIS_PASSWORD || 'mimo2026', 'admin'],
+      ['Gian', process.env.GIAN_EMAIL || 'gian@mimovelas.cl', initialPassword(process.env.GIAN_PASSWORD, 'Gian'), 'admin'],
+      ['Luis', process.env.LUIS_EMAIL || 'luis@mimovelas.cl', initialPassword(process.env.LUIS_PASSWORD, 'Luis'), 'admin'],
     ];
     for (const [name, email, pass, role] of users) {
       const hash = await bcrypt.hash(pass, 10);

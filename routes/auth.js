@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const JWT_SECRET = require('../middleware/secret');
 const pool = require('../db/database').pool || require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
 
@@ -16,7 +17,7 @@ router.post('/login', async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Credenciales incorrectas' });
     const token = jwt.sign(
       { id: user.id, name: user.name, email: user.email, role: user.role },
-      process.env.JWT_SECRET || 'mimo_dev_secret',
+      JWT_SECRET,
       { expiresIn: '7d' }
     );
     res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
