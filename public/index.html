@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>mimo — Gestión</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#62121D" />
+  <link rel="apple-touch-icon" href="/icon-192.svg" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="mimo Admin" />
+</head>
+<body>
+
+<!-- Loading Screen -->
+<div class="loading-overlay" id="loading-screen">
+  <div class="loading-spinner"></div>
+  <p style="color:var(--text-muted);font-size:0.85rem">Encendiendo mimo…</p>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Notification Panel -->
+<div class="notif-panel" id="notif-panel">
+  <div style="padding:16px 16px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+    <span style="font-weight:700;font-size:0.9rem">Notificaciones</span>
+    <button class="btn btn-ghost btn-sm" onclick="markNotifsRead()">Marcar leídas</button>
+  </div>
+  <div id="notif-list"></div>
+</div>
+
+<!-- ═══ AUTH SCREEN ═══ -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <img class="brand-logo logo-light" src="/brand/logo_mimo_borgona.svg" alt="mimo" />
+      <img class="brand-logo logo-dark" src="/brand/logo_mimo_crema.svg" alt="mimo" />
+      <p>Sistema de gestión · Hecho con mimo</p>
+    </div>
+    <div class="auth-error" id="auth-error"></div>
+    <form id="login-form">
+      <div class="form-group">
+        <label class="form-label">Correo electrónico</label>
+        <input type="email" class="form-control" id="login-email" placeholder="correo@mimovelas.cl" autocomplete="username" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contraseña</label>
+        <input type="password" class="form-control" id="login-pass" placeholder="••••••••" autocomplete="current-password" required />
+      </div>
+      <button type="submit" class="btn btn-primary w-full btn-lg" id="login-btn">
+        Iniciar sesión →
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ APP LAYOUT ═══ -->
+<div class="app-layout" id="app-layout" style="display:none">
+
+  <!-- Sidebar Overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand">
+        <img class="sidebar-wordmark" src="/brand/logo_mimo_crema.svg" alt="mimo" />
+        <span>Gestión · Hecho con mimo</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-label">Principal</div>
+        <div class="nav-item active" data-page="dashboard">
+          <span class="nav-icon">📊</span> Dashboard
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Negocio</div>
+        <div class="nav-item" data-page="inventory">
+          <span class="nav-icon">📦</span> Inventario
+          <span class="nav-badge hidden" id="badge-stock">0</span>
+        </div>
+        <div class="nav-item" data-page="sales">
+          <span class="nav-icon">💳</span> Nueva Venta
+        </div>
+        <div class="nav-item" data-page="customers">
+          <span class="nav-icon">🤍</span> Clientes
+        </div>
+        <div class="nav-item" data-page="orders">
+          <span class="nav-icon">📋</span> Pedidos
+          <span class="nav-badge hidden" id="badge-orders">0</span>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Análisis</div>
+        <div class="nav-item" data-page="reports">
+          <span class="nav-icon">📈</span> Reportes
+        </div>
+        <div class="nav-item" data-page="expenses">
+          <span class="nav-icon">💸</span> Gastos
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-pill" onclick="toggleTheme()">
+        <div class="user-avatar" id="user-avatar">G</div>
+        <div class="user-info">
+          <strong id="user-name">Gian</strong>
+          <span id="user-role">Administradora</span>
+        </div>
+        <span class="theme-icon" style="font-size:0.9rem">🌙</span>
+      </div>
+      <button class="btn btn-ghost btn-sm w-full mt-2" onclick="logout()">
+        Cerrar sesión
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── Main Content ── -->
+  <div class="main-content">
+
+    <!-- Top Header -->
+    <header class="top-header">
+      <button class="btn btn-ghost btn-icon" id="menu-btn" onclick="toggleSidebar()" style="display:none">☰</button>
+      <h1 class="header-title" id="header-title">Dashboard</h1>
+      <div class="header-actions">
+        <button class="header-btn" onclick="toggleTheme()" title="Cambiar tema"><span class="theme-icon">🌙</span></button>
+        <button class="header-btn" id="notif-btn" onclick="toggleNotifs()">
+          🔔
+          <span class="notif-dot hidden" id="notif-dot"></span>
+        </button>
+        <button class="btn btn-primary btn-sm" id="header-action-btn" onclick="handleHeaderAction()">+ Nueva venta</button>
+      </div>
+    </header>
+
+    <!-- Pages -->
+    <main class="page-content">
+
+      <!-- ═══ DASHBOARD ═══ -->
+      <div class="page active" id="page-dashboard">
+        <div class="stats-grid" id="stats-grid">
+          <div class="stat-card skeleton" style="height:120px"></div>
+          <div class="stat-card skeleton" style="height:120px"></div>
+          <div class="stat-card skeleton" style="height:120px"></div>
+          <div class="stat-card skeleton" style="height:120px"></div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Ventas</div>
+                <div class="card-subtitle">Últimos 30 días</div>
+              </div>
+              <div class="filters">
+                <button class="btn btn-ghost btn-sm chart-period-btn active" data-days="30">30d</button>
+                <button class="btn btn-ghost btn-sm chart-period-btn" data-days="14">14d</button>
+                <button class="btn btn-ghost btn-sm chart-period-btn" data-days="7">7d</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="salesChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">⚠️ Stock Bajo</div>
+                <a href="#" onclick="navigate('inventory')" class="btn btn-ghost btn-sm">Ver todo</a>
+              </div>
+              <div id="low-stock-list" style="padding:0 4px">
+                <div class="skeleton" style="height:40px;margin:10px 12px;border-radius:8px"></div>
+                <div class="skeleton" style="height:40px;margin:10px 12px;border-radius:8px"></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">⭐ Top Clientes</div>
+              </div>
+              <div id="top-customers-list" style="padding:0 4px">
+                <div class="skeleton" style="height:40px;margin:10px 12px;border-radius:8px"></div>
+                <div class="skeleton" style="height:40px;margin:10px 12px;border-radius:8px"></div>
+              </div>
+            </div>
+          <div id="expense-summary-section" style="margin-top:16px"></div>
+          </div>
+        </div>
+
+        <div class="grid-2 mt-4">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">🏆 Productos más vendidos</div>
+              <span class="text-muted text-sm">Últimos 30 días</span>
+            </div>
+            <div id="top-products-list" class="card-body">
+              <div class="skeleton" style="height:200px;border-radius:8px"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">🕐 Ventas Recientes</div>
+              <a href="#" onclick="navigate('sales')" class="btn btn-ghost btn-sm">Ver todo</a>
+            </div>
+            <div id="recent-sales-list">
+              <div class="skeleton" style="height:200px;margin:16px;border-radius:8px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ INVENTORY ═══ -->
+      <div class="page" id="page-inventory">
+        <div class="page-header">
+          <div class="page-header-left">
+            <h2>Inventario</h2>
+            <p>Gestión de productos y stock</p>
+          </div>
+          <div class="page-header-actions">
+            <button class="btn btn-secondary" onclick="openCategoryModal()">Categorías</button>
+            <button class="btn btn-secondary" onclick="openAromaModal()">Aromas</button>
+            <button class="btn btn-primary" onclick="openProductModal()">+ Agregar producto</button>
+          </div>
+        </div>
+
+        <div class="card mb-4">
+          <div class="card-body" style="padding:14px 16px">
+            <div class="flex gap-2" style="flex-wrap:wrap;align-items:center">
+              <div class="search-bar" style="flex:1;min-width:200px">
+                <span class="search-icon">🔍</span>
+                <input type="text" placeholder="Buscar producto, SKU…" id="inv-search" oninput="filterInventory()" />
+              </div>
+              <select class="form-control" style="width:160px" id="inv-cat" onchange="filterInventory()">
+                <option value="">Todas las categorías</option>
+              </select>
+              <select class="form-control" style="width:140px" id="inv-status" onchange="filterInventory()">
+                <option value="">Todos</option>
+                <option value="available">Disponible</option>
+                <option value="low_stock">Stock bajo</option>
+                <option value="out_of_stock">Agotado</option>
+              </select>
+              <div class="flex gap-2" style="margin-left:auto">
+                <button class="btn btn-secondary btn-icon" onclick="setInventoryView('grid')" id="view-grid" title="Vista cuadrícula">⊞</button>
+                <button class="btn btn-secondary btn-icon" onclick="setInventoryView('list')" id="view-list" title="Vista lista">☰</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- mimo opera solo en CLP; botones ocultos para mantener compatibilidad con inventory.js -->
+        <div style="display:none"><button id="inv-currency-clp"></button><button id="inv-currency-eur"></button></div>
+        <div id="inventory-stats" class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
+        <div id="inventory-content"></div>
+      </div>
+
+      <!-- ═══ SALES / POS ═══ -->
+      <div class="page" id="page-sales">
+        <div class="page-header">
+          <div class="page-header-left">
+            <h2>Nueva Venta</h2>
+            <p>Registra ventas rápido</p>
+          </div>
+          <div class="page-header-actions">
+            <button class="btn btn-secondary" onclick="showSalesHistory()">📋 Historial</button>
+          </div>
+        </div>
+        <div id="sales-content"></div>
+      </div>
+
+      <!-- ═══ CUSTOMERS ═══ -->
+      <div class="page" id="page-customers">
+        <div class="page-header">
+          <div class="page-header-left">
+            <h2>Clientes</h2>
+            <p>CRM — Base de clientes</p>
+          </div>
+          <div class="page-header-actions">
+            <button class="btn btn-primary" onclick="openCustomerModal()">+ Nueva cliente</button>
+          </div>
+        </div>
+
+        <div class="card mb-4">
+          <div class="card-body" style="padding:14px 16px">
+            <div class="flex gap-2" style="flex-wrap:wrap;align-items:center">
+              <div class="search-bar" style="flex:1;min-width:200px">
+                <span class="search-icon">🔍</span>
+                <input type="text" placeholder="Buscar por nombre, teléfono, Instagram…" id="cust-search" oninput="filterCustomers()" />
+              </div>
+              <button class="btn btn-secondary" id="vip-filter-btn" onclick="toggleVIPFilter()">⭐ Solo VIP</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="customers-content"></div>
+      </div>
+
+      <!-- ═══ ORDERS ═══ -->
+      <div class="page" id="page-orders">
+        <div class="page-header">
+          <div class="page-header-left">
+            <h2>Pedidos y Reservas</h2>
+            <p>Apartados, pedidos y reservaciones</p>
+          </div>
+          <div class="page-header-actions">
+            <button class="btn btn-primary" onclick="openOrderModal()">+ Nuevo pedido</button>
+          </div>
+        </div>
+
+        <div class="flex gap-2 mb-4" style="flex-wrap:wrap">
+          <button class="btn btn-secondary order-filter active" data-status="">Todos</button>
+          <button class="btn btn-secondary order-filter" data-status="pending">Pendientes</button>
+          <button class="btn btn-secondary order-filter" data-status="confirmed">Confirmados</button>
+          <button class="btn btn-secondary order-filter" data-status="paid">Pagados</button>
+          <button class="btn btn-secondary order-filter" data-status="delivered">Entregados</button>
+        </div>
+
+        <div id="orders-content"></div>
+      </div>
+
+      <!-- ═══ REPORTS ═══ -->
+      <div class="page" id="page-reports">
+        <div class="page-header">
+          <div class="page-header-left">
+            <h2>Reportes</h2>
+            <p>Análisis e inteligencia del negocio</p>
+          </div>
+          <div class="page-header-actions">
+            <input type="date" class="form-control" id="report-from" style="width:140px" />
+            <input type="date" class="form-control" id="report-to" style="width:140px" />
+            <button class="btn btn-primary" onclick="loadReports()">Generar</button>
+          </div>
+        </div>
+        <div id="reports-content"></div>
+      </div>
+
+      <!-- ═══ EXPENSES ═══ -->
+      <div class="page" id="page-expenses">
+        <div class="page-header">
+          <div class="page-header-left">
+            <h2>Gastos</h2>
+            <p>Registro de egresos del negocio</p>
+          </div>
+          <div class="page-header-actions">
+            <button class="btn btn-primary" onclick="openExpenseModal()">+ Registrar gasto</button>
+          </div>
+        </div>
+        <div id="expenses-content"></div>
+      </div>
+
+    </main><!-- /page-content -->
+  </div><!-- /main-content -->
+</div><!-- /app-layout -->
+
+<!-- ═══ MODALS ═══ -->
+
+<!-- Product Modal -->
+<div class="modal-overlay" id="product-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="product-modal-title">Agregar Producto</h2>
+      <button class="modal-close" onclick="closeModal('product-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pm-id" />
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Nombre del producto *</label>
+          <input type="text" class="form-control" id="pm-name" placeholder="Ej: Frambuesa cheesecake" />
+        </div>
+          <div class="form-group">
+            <label class="form-label">SKU <span style="font-size:11px;color:var(--text-muted)">(opcional, se genera automático si se deja vacío)</span></label>
+            <input type="text" class="form-control" id="pm-sku" placeholder="Ej: MIMO-003" style="text-transform:uppercase" />
+          </div>
+        <div class="form-group">
+          <label class="form-label">Categoría</label>
+          <select class="form-control" id="pm-category"></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Aroma</label>
+          <input type="text" class="form-control" id="pm-aroma" list="pm-aroma-list" placeholder="Ej: Vainilla (o vacío = a elección)" />
+          <datalist id="pm-aroma-list"></datalist>
+        </div>
+        <div class="form-group" style="flex:2">
+          <label class="form-label">Descripción (opcional)</label>
+          <textarea class="form-control" id="pm-desc" placeholder="Ej: Vaso de vidrio con crema batida y arándanos" rows="2"></textarea>
+        </div>
+      </div>
+      <!-- mimo vende solo en Chile (CLP) -->
+      <select id="pm-country" style="display:none"><option value="chile">Chile</option></select>
+      <div class="form-row" id="pm-prices-row">
+        <div class="form-group">
+          <label class="form-label">Precio costo</label>
+          <input type="number" class="form-control" id="pm-cost" placeholder="0.00" min="0" step="0.01" oninput="calcMargin()" />
+        </div>
+        <div class="form-group" id="pm-clp-group">
+          <label class="form-label">Precio venta (CLP)</label>
+          <input type="number" class="form-control" id="pm-price" placeholder="0" min="0" step="1" oninput="calcMargin()" />
+        </div>
+        <div class="form-group" id="pm-eur-group" style="display:none">
+          <label class="form-label">€ Precio EUR (Venezuela)</label>
+          <input type="number" class="form-control" id="pm-price-eur" placeholder="0.00" min="0" step="0.01" oninput="calcMargin()" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Margen estimado</label>
+          <input type="text" class="form-control" id="pm-margin" readonly placeholder="—" style="background:var(--bg-base)" />
+        </div>
+      </div>
+      <!-- Oferta / descuento -->
+      <div class="form-group">
+        <label class="form-label" style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="pm-has-offer" onchange="toggleOfferFields()" style="width:15px;height:15px;accent-color:var(--danger)" />
+          🏷️ Activar precio de oferta (precio tachado en catálogo)
+        </label>
+      </div>
+      <div id="pm-offer-row" style="display:none">
+        <div class="form-row">
+          <div class="form-group" id="pm-compare-clp-group">
+            <label class="form-label" style="color:var(--danger)">Precio normal CLP (tachado)</label>
+            <input type="number" class="form-control" id="pm-compare-price" placeholder="0" min="0" step="1" />
+          </div>
+          <div class="form-group" id="pm-compare-eur-group" style="display:none">
+            <label class="form-label" style="color:var(--danger)">€ Precio normal EUR (tachado)</label>
+            <input type="number" class="form-control" id="pm-compare-price-eur" placeholder="0.00" min="0" step="0.01" />
+          </div>
+        </div>
+        <small style="color:var(--text-secondary);display:block;margin-top:-8px;margin-bottom:12px">
+          El precio de arriba es el <strong>precio oferta</strong>. El precio normal aquí aparece tachado en el catálogo.
+        </small>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Stock actual</label>
+          <input type="number" class="form-control" id="pm-stock" placeholder="0" min="0" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stock mínimo (alerta)</label>
+          <input type="number" class="form-control" id="pm-minstock" placeholder="5" min="0" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Foto del producto</label>
+        <div id="pm-image-preview" style="display:none;margin-bottom:8px;">
+          <img id="pm-image-current" src="" alt="Foto actual"
+            style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--border)" />
+          <span style="margin-left:8px;font-size:12px;color:var(--text-secondary)">Foto actual</span>
+        </div>
+        <input type="file" class="form-control" id="pm-image" accept="image/*"
+          style="padding:6px" onchange="previewImage(this)" />
+        <small style="color:var(--text-secondary)">JPG, PNG o WebP — máx. 5MB</small>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('product-modal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveProduct()">Guardar producto</button>
+    </div>
+  </div>
+</div>
+
+<!-- Category Management Modal -->
+<div class="modal-overlay" id="category-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <h2 class="modal-title">📂 Gestionar Categorías</h2>
+      <button class="modal-close" onclick="closeModal('category-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Add / Edit form -->
+      <div class="card mb-4" style="padding:16px">
+        <div class="form-row" style="align-items:flex-end">
+          <input type="hidden" id="cat-editing-id" value="" />
+          <div class="form-group" style="flex:2;margin-bottom:0">
+            <label class="form-label">Nombre de la categoría *</label>
+            <input type="text" class="form-control" id="cat-name" placeholder="Ej: Edición Navidad" />
+          </div>
+          <div class="form-group" style="flex:0 0 80px;margin-bottom:0">
+            <label class="form-label">Ícono</label>
+            <input type="text" class="form-control" id="cat-icon" placeholder="🕯️" style="text-align:center;font-size:1.2rem" maxlength="4" />
+          </div>
+          <div class="form-group" style="flex:0 0 80px;margin-bottom:0">
+            <label class="form-label">Color</label>
+            <input type="color" class="form-control" id="cat-color" value="#62121D" style="padding:4px;height:38px;cursor:pointer" />
+          </div>
+          <div style="flex:0 0 auto;display:flex;gap:6px">
+            <button class="btn btn-primary btn-sm" onclick="saveCategory()" id="cat-save-btn">+ Agregar</button>
+            <button class="btn btn-secondary btn-sm" onclick="cancelCategoryEdit()" id="cat-cancel-btn" style="display:none">Cancelar</button>
+          </div>
+        </div>
+      </div>
+      <!-- Category list -->
+      <div id="cat-list" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('category-modal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Aromas Modal: lista "Aromas disponibles" que muestra el catálogo -->
+<div class="modal-overlay" id="aroma-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h2 class="modal-title">Aromas disponibles</h2>
+      <button class="modal-close" onclick="closeModal('aroma-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:14px">Se muestran en el catálogo, en "Tu vela, a tu gusto", y el cliente puede elegirlos al pedir.</p>
+      <div class="form-row" style="align-items:flex-end;margin-bottom:16px">
+        <input type="hidden" id="aroma-editing-id" value="" />
+        <div class="form-group" style="flex:1;margin-bottom:0">
+          <label class="form-label">Nombre del aroma</label>
+          <input type="text" class="form-control" id="aroma-name" placeholder="Ej: Coco" onkeydown="if(event.key==='Enter')saveAroma()" />
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-primary btn-sm" onclick="saveAroma()" id="aroma-save-btn">+ Agregar</button>
+          <button class="btn btn-secondary btn-sm" onclick="resetAromaForm()" id="aroma-cancel-btn" style="display:none">Cancelar</button>
+        </div>
+      </div>
+      <div id="aroma-list" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('aroma-modal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Customer Modal -->
+<div class="modal-overlay" id="customer-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="customer-modal-title">Nueva Cliente</h2>
+      <button class="modal-close" onclick="closeModal('customer-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cm-id" />
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Nombre completo *</label>
+          <input type="text" class="form-control" id="cm-name" placeholder="Ej: Valentina García" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Teléfono / WhatsApp</label>
+          <input type="text" class="form-control" id="cm-phone" placeholder="+58 414-000-0000" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Instagram</label>
+          <input type="text" class="form-control" id="cm-ig" placeholder="@usuario" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Correo electrónico</label>
+          <input type="email" class="form-control" id="cm-email" placeholder="correo@gmail.com" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Cumpleaños</label>
+          <input type="date" class="form-control" id="cm-birthday" />
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end;gap:8px">
+          <label style="display:flex;align-items:center;gap:8px;padding-bottom:9px;cursor:pointer">
+            <input type="checkbox" id="cm-vip" style="width:16px;height:16px;accent-color:var(--warning)" />
+            <span class="form-label" style="margin:0">⭐ Marcar como VIP</span>
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Gustos / Preferencias</label>
+        <input type="text" class="form-control" id="cm-prefs" placeholder="Ej: le gustan los bolsos oscuros, talla M" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notas privadas</label>
+        <textarea class="form-control" id="cm-notes" placeholder="Notas internas…" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('customer-modal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveCustomer()">Guardar cliente</button>
+    </div>
+  </div>
+</div>
+
+<!-- Order Modal -->
+<div class="modal-overlay" id="order-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Nuevo Pedido / Reserva</h2>
+      <button class="modal-close" onclick="closeModal('order-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Cliente *</label>
+          <select class="form-control" id="om-customer"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo</label>
+          <select class="form-control" id="om-type">
+            <option value="reservation">Reserva</option>
+            <option value="layaway">Apartado</option>
+            <option value="custom_order">Pedido personalizado</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descripción del pedido</label>
+        <textarea class="form-control" id="om-desc" placeholder="¿Qué producto o pedido es?" rows="2"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Total ($)</label>
+          <input type="number" class="form-control" id="om-total" placeholder="0.00" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Depósito / Abono ($)</label>
+          <input type="number" class="form-control" id="om-deposit" placeholder="0.00" min="0" step="0.01" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fecha de entrega</label>
+        <input type="date" class="form-control" id="om-due" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notas</label>
+        <textarea class="form-control" id="om-notes" placeholder="Detalles adicionales…" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('order-modal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveOrder()">Crear pedido</button>
+    </div>
+  </div>
+</div>
+
+<!-- Order Detail Modal -->
+<div class="modal-overlay" id="order-detail-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="od-title">Pedido #</h2>
+      <button class="modal-close" onclick="closeModal('order-detail-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="od-body"></div>
+    <div class="modal-footer" id="od-footer"></div>
+  </div>
+</div>
+
+<!-- Sale Receipt Modal -->
+<div class="modal-overlay" id="receipt-modal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h2 class="modal-title">✅ Venta Registrada</h2>
+      <button class="modal-close" onclick="closeModal('receipt-modal');resetPOS()">✕</button>
+    </div>
+    <div class="modal-body" id="receipt-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('receipt-modal');resetPOS()">Nueva venta</button>
+      <button class="btn btn-primary" onclick="printReceipt()">🖨️ Imprimir</button>
+    </div>
+  </div>
+</div>
+
+<!-- Customer Detail Modal -->
+<div class="modal-overlay" id="customer-detail-modal">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="cd-title">Perfil de Cliente</h2>
+      <button class="modal-close" onclick="closeModal('customer-detail-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="cd-body"></div>
+    <div class="modal-footer" id="cd-footer"></div>
+  </div>
+</div>
+
+<!-- Expense Modal -->
+<div class="modal-overlay" id="expense-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Registrar Gasto</h2>
+      <button class="modal-close" onclick="closeModal('expense-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Fecha *</label>
+          <input type="date" class="form-control" id="exp-date" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Monto ($) *</label>
+          <input type="number" class="form-control" id="exp-amount" placeholder="0.00" min="0" step="0.01" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Categoría *</label>
+        <select class="form-control" id="exp-category">
+          <option value="Materiales">📦 Materiales</option>
+          <option value="Empaque">🎁 Empaque</option>
+          <option value="Transporte">🚚 Transporte</option>
+          <option value="Otros">✨ Otros</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descripción *</label>
+        <input type="text" class="form-control" id="exp-description" placeholder="Ej: Bolsas de empaque x100" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('expense-modal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveExpense()">Guardar gasto</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile Bottom Nav -->
+<nav class="mobile-nav">
+  <div class="mobile-nav-item active" data-page="dashboard"><span class="icon">📊</span>Inicio</div>
+  <div class="mobile-nav-item" data-page="inventory"><span class="icon">📦</span>Stock</div>
+  <div class="mobile-nav-item" data-page="sales"><span class="icon">💳</span>Vender</div>
+  <div class="mobile-nav-item" data-page="customers"><span class="icon">🤍</span>Clientes</div>
+  <div class="mobile-nav-item" data-page="orders"><span class="icon">📋</span>Pedidos</div>
+</nav>
+
+<!-- Scripts -->
+<script src="/js/api.js"></script>
+<script src="/js/dashboard.js"></script>
+<script src="/js/inventory.js"></script>
+<script src="/js/sales.js"></script>
+<script src="/js/customers.js"></script>
+<script src="/js/orders.js"></script>
+<script src="/js/reports.js"></script>
+<script src="/js/expenses.js"></script>
+<script src="/js/main.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
+  }
+</script>
+</body>
+</html>
