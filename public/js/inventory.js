@@ -224,7 +224,7 @@ async function openProductModal(id = null) {
     document.getElementById('pm-price-eur').value = p.price_eur || '';
     document.getElementById('pm-stock').value = p.stock;
     document.getElementById('pm-minstock').value = p.min_stock;
-    document.getElementById('pm-country').value = p.country || 'both';
+    document.getElementById('pm-country').value = 'chile';
     // Offer / compare price
     const hasOffer = (p.compare_price > 0 || p.compare_price_eur > 0);
     document.getElementById('pm-has-offer').checked = hasOffer;
@@ -247,7 +247,7 @@ async function openProductModal(id = null) {
     });
     document.getElementById('pm-category').value = '';
     document.getElementById('pm-minstock').value = 5;
-    document.getElementById('pm-country').value = 'both';
+    document.getElementById('pm-country').value = 'chile';
     document.getElementById('pm-has-offer').checked = false;
     document.getElementById('pm-offer-row').style.display = 'none';
     updatePriceFields();
@@ -262,33 +262,25 @@ function toggleOfferFields() {
     document.getElementById('pm-compare-price').value = '';
     document.getElementById('pm-compare-price-eur').value = '';
   }
-  // Show/hide compare fields based on country
-  const country = document.getElementById('pm-country').value;
-  document.getElementById('pm-compare-clp-group').style.display =
-    (country === 'chile' || country === 'both') ? '' : 'none';
-  document.getElementById('pm-compare-eur-group').style.display =
-    (country === 'venezuela' || country === 'both') ? '' : 'none';
+  updatePriceFields();
 }
 
+// mimo vende solo en Chile: el precio en CLP siempre visible, el de EUR siempre oculto.
+// (Antes dependía de un selector de país heredado de BML; al crear una vela nueva quedaba vacío
+//  y escondía el campo "Precio venta".)
 function updatePriceFields() {
-  const country = document.getElementById('pm-country').value;
-  const clpGroup = document.getElementById('pm-clp-group');
-  const eurGroup = document.getElementById('pm-eur-group');
-  const showClp = (country === 'chile' || country === 'both');
-  const showEur = (country === 'venezuela' || country === 'both');
-  clpGroup.style.display = showClp ? '' : 'none';
-  eurGroup.style.display = showEur ? '' : 'none';
-  // Sync compare price groups visibility
+  document.getElementById('pm-clp-group').style.display = '';
+  document.getElementById('pm-eur-group').style.display = 'none';
   const compareClp = document.getElementById('pm-compare-clp-group');
   const compareEur = document.getElementById('pm-compare-eur-group');
-  if (compareClp) compareClp.style.display = showClp ? '' : 'none';
-  if (compareEur) compareEur.style.display = showEur ? '' : 'none';
+  if (compareClp) compareClp.style.display = '';
+  if (compareEur) compareEur.style.display = 'none';
   calcMargin();
 }
 
 function calcMargin() {
   const cost = parseFloat(document.getElementById('pm-cost').value) || 0;
-  const country = document.getElementById('pm-country')?.value || 'both';
+  const country = 'chile';
   // Use CLP price for margin if available, otherwise EUR
   const clpPrice = parseFloat(document.getElementById('pm-price').value) || 0;
   const eurPrice = parseFloat(document.getElementById('pm-price-eur').value) || 0;
@@ -339,7 +331,7 @@ async function saveProduct() {
 
   // Use FormData when there's an image, plain object otherwise
   let data;
-  const country = document.getElementById('pm-country').value || 'both';
+  const country = 'chile';
   const priceEur = document.getElementById('pm-price-eur').value || 0;
   const hasOffer = document.getElementById('pm-has-offer').checked;
   const comparePrice = hasOffer ? (document.getElementById('pm-compare-price').value || 0) : 0;
