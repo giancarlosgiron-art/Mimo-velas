@@ -89,9 +89,10 @@ const SITE_SECTIONS = [
     { name: 'location', type: 'text', label: 'Ubicación' },
     { name: 'note',     type: 'text', label: 'Aviso' },
   ]},
-  { key: 'general', title: 'WhatsApp y Google', icon: '📱', desc: 'A dónde llegan los pedidos y cómo aparece la página en Google y al compartirla.', fields: [
+  { key: 'general', title: 'Contacto y Google', icon: '📱', desc: 'WhatsApp de pedidos, Instagram y cómo aparece la página en Google y al compartirla.', fields: [
     { name: 'whatsapp',       type: 'text', label: 'WhatsApp de pedidos', hint: 'Formato internacional sin + ni espacios. Ej: 56976720121' },
     { name: 'whatsapp_label', type: 'text', label: 'Cómo se muestra el número', hint: 'Ej: +56 9 7672 0121' },
+    { name: 'instagram', type: 'text', label: 'Usuario de Instagram', hint: 'Sin @. Ej: mimo.velas — se muestra en el pie de página y en el menú. Vacío = no se muestra' },
     { name: 'site_title',       type: 'text',     label: 'Título de la página (pestaña del navegador y Google)' },
     { name: 'site_description', type: 'textarea', label: 'Descripción (Google y al compartir el link)', rows: 2 },
   ]},

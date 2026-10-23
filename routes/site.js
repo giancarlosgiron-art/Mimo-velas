@@ -28,6 +28,7 @@ const DEFAULTS = {
     site_description: 'Velas aromáticas de soja hechas a mano en Santiago. Elige el diseño y el aroma. Hecho con mimo.',
     whatsapp: '56976720121',
     whatsapp_label: '+56 9 7672 0121',
+    instagram: '',          // usuario de Instagram, sin @ (ej: mimo.velas)
   },
   cinta: {
     enabled: true,
