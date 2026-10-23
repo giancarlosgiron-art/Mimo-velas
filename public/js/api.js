@@ -59,6 +59,7 @@ const API = {
   site()                          { return this.get('/site'); },
   siteDefaults()                  { return this.get('/site/defaults'); },
   saveSite(key, data)             { return this.put(`/site/${key}`, data); },
+  uploadSiteImage(file)           { const fd = new FormData(); fd.append('image', file); return this.post('/site/images', fd); },
   aromas()                        { return this.get('/aromas'); },
   createAroma(data)               { return this.post('/aromas', data); },
   updateAroma(id, data)           { return this.put(`/aromas/${id}`, data); },

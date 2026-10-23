@@ -32,6 +32,19 @@ const SITE_SECTIONS = [
     { name: 'font_body',    type: 'font', label: 'Tipografía de textos',  options: BODY_FONTS },
     { name: 'motion', type: 'toggle', label: 'Animaciones y efectos en movimiento', hint: 'Cinta en movimiento, burbujas flotando, velas que rotan…' },
   ]},
+  { key: 'banners', title: 'Banners especiales', icon: '🎄', desc: 'Banners grandes arriba del inicio para ocasiones especiales (Navidad, Día de la Madre…). Solo se muestran los activos.', fields: [
+    { name: 'items', type: 'group', label: 'Banners', addLabel: '+ Agregar banner', itemLabel: 'Banner', subfields: [
+      { name: 'active', type: 'toggle', label: 'Activo (se muestra en la página)' },
+      { name: 'image', type: 'image', label: 'Imagen', hint: 'Horizontal, idealmente 1600 × 700 px o más. Se achica sola al subirla.' },
+      { name: 'eyebrow', type: 'text', label: 'Texto pequeño (opcional)' },
+      { name: 'title', type: 'text', label: 'Título' },
+      { name: 'text', type: 'textarea', label: 'Texto', rows: 2 },
+      { name: 'cta_label', type: 'text', label: 'Botón (opcional)' },
+      { name: 'link', type: 'text', label: 'A dónde lleva el botón', hint: 'Ej: /catalogo, /catalogo?coleccion=postres o un link completo' },
+    ]},
+  ]},
+  { key: 'categorias', title: 'Categorías', icon: '🗂️', desc: 'Las categorías del catálogo: banner, descripción, orden y si aparecen en "Compra por categoría" del inicio.', custom: true },
+  { key: 'destacados', title: 'Más vendidos', icon: '⭐', desc: 'Elige y ordena las velas que aparecen en "Los más vendidos" del inicio.', custom: true },
   { key: 'cinta', title: 'Cinta superior', icon: '🎞️', desc: 'Los mensajes que pasan en movimiento arriba de la página.', fields: [
     { name: 'enabled', type: 'toggle', label: 'Mostrar la cinta' },
     { name: 'items', type: 'list', label: 'Mensajes', placeholder: 'Ej: Envíos a todo Santiago', addLabel: '+ Agregar mensaje' },
@@ -132,12 +145,16 @@ async function loadSite() {
 function selectSiteSection(key, force = false) {
   if (!force && SiteEditor.dirty && !confirm('Tienes cambios sin guardar en esta sección. ¿Descartarlos?')) return;
   SiteEditor.current = key;
+  if (key === 'categorias') { SiteEditor.dirty = false; return renderCategoriesEditor(); }
+  if (key === 'destacados') { SiteEditor.draft = JSON.parse(JSON.stringify(SiteEditor.data.destacados)); SiteEditor.dirty = false; return renderFeaturedEditor(); }
   SiteEditor.draft = JSON.parse(JSON.stringify(SiteEditor.data[key]));
   SiteEditor.dirty = false;
   renderSiteEditor();
 }
 
 function renderSiteEditor() {
+  if (SiteEditor.current === 'destacados') return renderFeaturedEditor();
+  if (SiteEditor.current === 'categorias') return renderCategoriesEditor();
   const section = SITE_SECTIONS.find(s => s.key === SiteEditor.current);
   const el = document.getElementById('site-editor');
   el.innerHTML = `
@@ -163,7 +180,7 @@ function renderSiteEditor() {
           </div>
           <div class="card-footer site-footer">
             <button class="btn btn-ghost btn-sm" onclick="restoreSiteSection()">Restaurar valores originales</button>
-            <span id="site-dirty" class="site-dirty" style="display:none">Cambios sin guardar</span>
+            <span id="site-dirty" class="site-dirty" style="display:${SiteEditor.dirty ? '' : 'none'}">Cambios sin guardar</span>
             <button class="btn btn-primary" id="site-save-btn" onclick="saveSiteSection()">Guardar cambios</button>
           </div>
         </div>
@@ -200,6 +217,17 @@ function renderSiteField(f, value, path) {
             <span class="site-font-sample" style="font-family:${o.family}">Aa</span>
             <span><strong>${siteEsc(o.label)}</strong><br><small>${siteEsc(o.hint)}</small></span>
           </button>`).join('')}</div></div>`;
+    case 'image':
+      return `<div class="form-group site-full"><label class="form-label">${siteEsc(f.label)}</label>
+        <div class="site-image">
+          ${value ? `<img src="${siteEsc(value)}" alt="" />` : '<div class="site-image-empty">Sin imagen</div>'}
+          <div class="site-image-actions">
+            <label class="btn btn-secondary btn-sm">${value ? 'Cambiar imagen' : 'Subir imagen'}
+              <input type="file" accept="image/*" hidden onchange="uploadSiteImageField('${path}', this)" />
+            </label>
+            ${value ? `<button type="button" class="btn btn-ghost btn-sm" onclick="setSiteValue('${path}', ''); renderSiteEditor(); markSiteDirty()">Quitar</button>` : ''}
+          </div>
+        </div>${hint}</div>`;
     case 'list':
       return `<div class="form-group site-full"><label class="form-label">${siteEsc(f.label)}</label>
         <div class="site-list">${(value || []).map((v, i) => `
@@ -257,7 +285,6 @@ function addSiteItem(path, blank) {
   obj[key] = [...(obj[key] || []), JSON.parse(JSON.stringify(blank))];
   markSiteDirty();
   renderSiteEditor();
-  document.getElementById('site-dirty').style.display = '';
 }
 
 function removeSiteItem(path, i) {
@@ -265,7 +292,6 @@ function removeSiteItem(path, i) {
   obj[key].splice(i, 1);
   markSiteDirty();
   renderSiteEditor();
-  document.getElementById('site-dirty').style.display = '';
 }
 
 function moveSiteItem(path, i, dir) {
@@ -274,7 +300,6 @@ function moveSiteItem(path, i, dir) {
   [list[i], list[i + dir]] = [list[i + dir], list[i]];
   markSiteDirty();
   renderSiteEditor();
-  document.getElementById('site-dirty').style.display = '';
 }
 
 function restoreSiteSection() {
@@ -326,4 +351,183 @@ function renderSitePreview() {
         </div>
       </div>
     </div>`;
+}
+
+// ── Imágenes de banners ───────────────────────────
+async function uploadSiteImage(file) {
+  const small = typeof compressImage === 'function' ? await compressImage(file, 2000, 0.85) : file;
+  const { url } = await API.uploadSiteImage(small);
+  return url;
+}
+
+async function uploadSiteImageField(path, input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  try {
+    toast('Subiendo imagen…', 'info');
+    setSiteValue(path, await uploadSiteImage(file));
+    renderSiteEditor();
+    markSiteDirty();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function siteCard(section, body, footer) {
+  return `
+    <div class="site-layout">
+      <nav class="site-tabs">
+        ${SITE_SECTIONS.map(s => `
+          <button class="site-tab ${s.key === section.key ? 'active' : ''}" onclick="selectSiteSection('${s.key}')">
+            <span>${s.icon}</span>${siteEsc(s.title)}
+          </button>`).join('')}
+      </nav>
+      <div class="site-main">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">${section.icon} ${siteEsc(section.title)}</div>
+              <div class="site-desc">${siteEsc(section.desc)}</div>
+            </div>
+            <a class="btn btn-secondary btn-sm" href="${CATALOG_URL}" target="_blank" rel="noopener">Ver página ↗</a>
+          </div>
+          <div class="card-body">${body}</div>
+          ${footer ? `<div class="card-footer site-footer">${footer}</div>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── Categorías: banner, descripción, orden y visibilidad en el inicio ──
+async function renderCategoriesEditor() {
+  const section = SITE_SECTIONS.find(s => s.key === 'categorias');
+  const el = document.getElementById('site-editor');
+  const cats = await API.categories();
+  SiteEditor.categories = cats;
+  el.innerHTML = siteCard(section, `
+    <div class="site-group">
+      ${cats.map((c, i) => `
+        <div class="site-group-item site-cat">
+          <div class="site-group-head">
+            <strong>${siteEsc(c.icon || '')} ${siteEsc(c.name)}</strong>
+            <span class="site-move">
+              <button type="button" class="btn btn-ghost btn-sm btn-icon" title="Subir" ${i === 0 ? 'disabled' : ''} onclick="moveCategory(${i}, -1)">↑</button>
+              <button type="button" class="btn btn-ghost btn-sm btn-icon" title="Bajar" ${i === cats.length - 1 ? 'disabled' : ''} onclick="moveCategory(${i}, 1)">↓</button>
+            </span>
+          </div>
+          <div class="site-cat-body">
+            <div class="site-image">
+              ${c.image ? `<img src="${siteEsc(c.image)}" alt="" />` : '<div class="site-image-empty">Sin banner<br><small>se usa su color</small></div>'}
+              <div class="site-image-actions">
+                <label class="btn btn-secondary btn-sm">${c.image ? 'Cambiar banner' : 'Subir banner'}
+                  <input type="file" accept="image/*" hidden onchange="uploadCategoryBanner(${c.id}, this)" />
+                </label>
+                ${c.image ? `<button type="button" class="btn btn-ghost btn-sm" onclick="saveCategoryField(${c.id}, { image: '' })">Quitar</button>` : ''}
+              </div>
+            </div>
+            <div>
+              <div class="form-group">
+                <label class="form-label">Nombre</label>
+                <input class="form-control" value="${siteEsc(c.name)}" onchange="saveCategoryField(${c.id}, { name: this.value })" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Descripción (se ve en su banner)</label>
+                <textarea class="form-control" rows="2" placeholder="Ej: Todo lo que se come con cuchara." onchange="saveCategoryField(${c.id}, { description: this.value })">${siteEsc(c.description || '')}</textarea>
+              </div>
+              <label class="site-toggle">
+                <input type="checkbox" ${c.show_home ? 'checked' : ''} onchange="saveCategoryField(${c.id}, { show_home: this.checked })" />
+                <span class="site-switch"></span><span><strong>Mostrar en "Compra por categoría" del inicio</strong></span>
+              </label>
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>
+    <div class="site-list-row" style="margin-top:14px">
+      <input class="form-control" id="new-cat-name" placeholder="Nueva categoría (ej: Wax melts, Arma tu vela)" onkeydown="if(event.key==='Enter')createCategoryFromSite()" />
+      <button class="btn btn-primary btn-sm" onclick="createCategoryFromSite()">+ Crear categoría</button>
+    </div>
+    <small class="site-hint">Los cambios se guardan al momento. Para borrar una categoría: Inventario → Categorías.</small>
+  `);
+}
+
+async function saveCategoryField(id, patch) {
+  try {
+    await API.updateCategory(id, patch);
+    toast('Guardado ✓', 'success');
+    if ('image' in patch || 'name' in patch) await renderCategoriesEditor();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function uploadCategoryBanner(id, input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  try {
+    toast('Subiendo banner…', 'info');
+    await saveCategoryField(id, { image: await uploadSiteImage(file) });
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function moveCategory(i, dir) {
+  const cats = SiteEditor.categories.slice();
+  [cats[i], cats[i + dir]] = [cats[i + dir], cats[i]];
+  try {
+    await Promise.all(cats.map((c, pos) => API.updateCategory(c.id, { position: pos + 1 })));
+    await renderCategoriesEditor();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function createCategoryFromSite() {
+  const input = document.getElementById('new-cat-name');
+  const name = input.value.trim();
+  if (!name) return toast('Escribe el nombre de la categoría', 'warning');
+  try {
+    await API.createCategory({ name, icon: '🕯️', color: '#62121D' });
+    toast(`Categoría "${name}" creada ✓`, 'success');
+    await renderCategoriesEditor();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+// ── Más vendidos: elegir y ordenar velas ───────────
+async function renderFeaturedEditor() {
+  const section = SITE_SECTIONS.find(s => s.key === 'destacados');
+  const el = document.getElementById('site-editor');
+  if (!SiteEditor.products) SiteEditor.products = await API.request('GET', '/products?admin=1');
+  const d = SiteEditor.draft;
+  const byId = Object.fromEntries(SiteEditor.products.map(p => [String(p.id), p]));
+  const chosen = d.product_ids.filter(id => byId[id]);
+  const available = SiteEditor.products.filter(p => !chosen.includes(String(p.id)));
+  el.innerHTML = siteCard(section, `
+    <div class="site-fields">
+      ${renderSiteField({ name: 'eyebrow', type: 'text', label: 'Texto pequeño' }, d.eyebrow, 'eyebrow')}
+      ${renderSiteField({ name: 'title', type: 'text', label: 'Título' }, d.title, 'title')}
+    </div>
+    <label class="form-label" style="margin-top:6px">Velas elegidas (en este orden)</label>
+    <div class="site-group">
+      ${chosen.length ? chosen.map((id, i) => {
+        const p = byId[id];
+        return `<div class="site-feat">
+          ${p.image ? `<img src="${siteEsc(p.image)}" alt="" />` : '<span class="site-feat-ph">🕯️</span>'}
+          <div><strong>${siteEsc(p.name)}</strong><br><small>${siteEsc(p.category_name || '')} · $${Number(p.sale_price).toLocaleString('es-CL')}</small></div>
+          ${siteMoveButtons('product_ids', i, chosen.length)}
+        </div>`;
+      }).join('') : '<p class="site-hint">Todavía no eliges ninguna. Agrega velas abajo.</p>'}
+    </div>
+    <div class="site-list-row" style="margin-top:10px">
+      <select class="form-control" id="feat-add">
+        <option value="">Elige una vela para agregar…</option>
+        ${available.map(p => `<option value="${p.id}">${siteEsc(p.name)}</option>`).join('')}
+      </select>
+      <button class="btn btn-secondary btn-sm" onclick="addFeatured()">+ Agregar</button>
+    </div>
+    <div class="form-group" style="margin-top:16px">
+      ${renderSiteField({ name: 'auto', type: 'toggle', label: 'Completar con las más vendidas reales', hint: 'Si eliges menos de 4, se completan con las velas que más se venden en el sistema.' }, d.auto, 'auto')}
+    </div>
+  `, `<span id="site-dirty" class="site-dirty" style="display:${SiteEditor.dirty ? '' : 'none'}">Cambios sin guardar</span>
+      <button class="btn btn-primary" id="site-save-btn" onclick="saveSiteSection()">Guardar cambios</button>`);
+}
+
+function addFeatured() {
+  const id = document.getElementById('feat-add').value;
+  if (!id) return;
+  SiteEditor.draft.product_ids = [...SiteEditor.draft.product_ids.filter(x => SiteEditor.products.some(p => String(p.id) === x)), id];
+  markSiteDirty();
+  renderFeaturedEditor();
 }

@@ -1061,3 +1061,17 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   .site-tab { white-space: nowrap; }
   .site-fields { grid-template-columns: 1fr; }
 }
+
+/* Mi página: imágenes de banners, categorías y más vendidos */
+.site-image { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.site-image img, .site-image-empty { width: 220px; aspect-ratio: 16 / 7; object-fit: cover; border-radius: 14px; box-shadow: inset 0 0 0 1px var(--label-line); }
+.site-image-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 0.78rem; color: var(--text-muted); background: var(--bg-hover); }
+.site-image-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.site-image-actions label.btn { cursor: pointer; }
+.site-cat-body { display: grid; grid-template-columns: 240px 1fr; gap: 16px; padding-bottom: 10px; }
+.site-cat-body .site-image { flex-direction: column; align-items: flex-start; }
+.site-feat { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 16px; box-shadow: inset 0 0 0 1px var(--label-line); }
+.site-feat img, .site-feat-ph { width: 46px; height: 46px; border-radius: 12px; object-fit: cover; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--bg-hover); }
+.site-feat > div { flex: 1; min-width: 0; font-size: 0.86rem; }
+.site-feat small { color: var(--text-muted); }
+@media (max-width: 1280px) { .site-cat-body { grid-template-columns: 1fr; } }

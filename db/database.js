@@ -90,6 +90,15 @@ async function initSchema() {
       key TEXT PRIMARY KEY, data JSONB NOT NULL, updated_by TEXT,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS site_images (
+      id SERIAL PRIMARY KEY, mime TEXT NOT NULL, data BYTEA NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    -- Categorías como colecciones del catálogo: banner, descripción, orden y si salen en el inicio
+    ALTER TABLE categories ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';
+    ALTER TABLE categories ADD COLUMN IF NOT EXISTS image TEXT;
+    ALTER TABLE categories ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0;
+    ALTER TABLE categories ADD COLUMN IF NOT EXISTS show_home INTEGER DEFAULT 1;
     CREATE TABLE IF NOT EXISTS expenses (
       id SERIAL PRIMARY KEY, date TEXT NOT NULL, amount REAL NOT NULL,
       description TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'Otros',

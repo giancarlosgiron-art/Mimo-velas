@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
+const { upload } = require('../middleware/upload');
 
 // Contenido editable de la página pública (catálogo): textos, cinta superior, colores y tipografías.
 // Se edita en el panel → "Mi página". Cada bloque se guarda por separado en site_content (key → JSON).
@@ -86,6 +87,18 @@ const DEFAULTS = {
     card_text: 'Corta la mecha a 5 mm antes de cada uso y no la dejes encendida sin supervisión. Mantenla lejos de niños y mascotas.',
     card_note: 'Vela decorativa. No comestible.',
   },
+  banners: {
+    // Banners de ocasiones especiales: arriba del inicio, solo los activos. Este de ejemplo viene apagado.
+    items: [
+      { active: false, eyebrow: 'Edición limitada', title: 'Navidad con mimo', text: 'Velas de temporada para regalar y regalarte.', cta_label: 'Ver colección', link: '/catalogo', image: '' },
+    ],
+  },
+  destacados: {
+    eyebrow: 'Favoritos',
+    title: 'Los más vendidos',
+    product_ids: [],        // elegidos y ordenados en el panel
+    auto: true,             // si faltan, completar con los más vendidos reales
+  },
   pie: {
     tagline: 'Un detalle que huele y se ve bien.',
     location: 'Hecho a mano en Santiago, Chile',
@@ -110,7 +123,7 @@ function sanitize(value, model, path) {
   }
   if (Array.isArray(model)) {
     if (!Array.isArray(value)) return model;
-    const item = model[0];
+    const item = model.length ? model[0] : '';
     return value.slice(0, 20).map((v, i) => sanitize(v, item, `${path}[${i}]`))
       .filter(v => typeof v === 'string' ? v !== '' : true);
   }
@@ -122,6 +135,25 @@ function sanitize(value, model, path) {
   }
   return model;
 }
+
+// Imágenes de banners (inicio y categorías), guardadas en la base como las fotos de productos
+router.post('/images', authMiddleware, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file || !/^image\//.test(req.file.mimetype)) return res.status(400).json({ error: 'Sube una imagen (JPG, PNG o WebP)' });
+    const { rows } = await pool.query('INSERT INTO site_images (mime, data) VALUES ($1,$2) RETURNING id', [req.file.mimetype, req.file.buffer]);
+    res.status(201).json({ url: `/api/site/images/${rows[0].id}` });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/images/:id', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT mime, data FROM site_images WHERE id=$1', [req.params.id]);
+    if (!rows[0]) return res.status(404).end();
+    res.set('Content-Type', rows[0].mime);
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    res.send(rows[0].data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 // Público: todo el contenido, con los valores por defecto donde no haya nada guardado
 router.get('/', async (req, res) => {

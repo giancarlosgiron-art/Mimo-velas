@@ -38,7 +38,7 @@ router.get('/', async (req, res) => {
 
 router.get('/categories', async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM categories ORDER BY name');
+    const { rows } = await pool.query('SELECT * FROM categories ORDER BY position, id');
     res.json(rows);
   } catch (err) { const msg = err.message.includes('products_sku_key') ? 'El SKU ingresado ya existe. Por favor usa un SKU diferente.' : err.message; res.status(500).json({ error: msg }); }
 });
@@ -47,7 +47,7 @@ router.post('/categories', authMiddleware, async (req, res) => {
   try {
     const { name, icon, color } = req.body;
     if (!name) return res.status(400).json({ error: 'Nombre requerido' });
-    const { rows } = await pool.query('INSERT INTO categories (name,icon,color) VALUES ($1,$2,$3) RETURNING *',[name.trim(),icon||'tag',color||'#A85A35']);
+    const { rows } = await pool.query('INSERT INTO categories (name,icon,color,position) VALUES ($1,$2,$3,(SELECT COALESCE(MAX(position),0)+1 FROM categories)) RETURNING *',[name.trim(),icon||'🕯️',color||'#62121D']);
     res.status(201).json(rows[0]);
   } catch (err) { const msg = err.message.includes('products_sku_key') ? 'El SKU ingresado ya existe. Por favor usa un SKU diferente.' : err.message; res.status(500).json({ error: msg }); }
 });
@@ -56,8 +56,15 @@ router.put('/categories/:id', authMiddleware, async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM categories WHERE id=$1',[req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Categoria no encontrada' });
-    const { name, icon, color } = req.body;
-    await pool.query('UPDATE categories SET name=$1,icon=$2,color=$3 WHERE id=$4',[name||rows[0].name,icon||rows[0].icon,color||rows[0].color,req.params.id]);
+    const c = rows[0];
+    const { name, icon, color, description, image, position, show_home } = req.body;
+    await pool.query('UPDATE categories SET name=$1,icon=$2,color=$3,description=$4,image=$5,position=$6,show_home=$7 WHERE id=$8',[
+      (name||'').trim()||c.name, icon||c.icon, color||c.color,
+      description!==undefined ? String(description).trim().slice(0,600) : c.description,
+      image!==undefined ? (image||null) : c.image,
+      position!==undefined ? parseInt(position)||0 : c.position,
+      show_home!==undefined ? (show_home ? 1 : 0) : c.show_home,
+      req.params.id]);
     res.json({ message: 'Categoria actualizada' });
   } catch (err) { const msg = err.message.includes('products_sku_key') ? 'El SKU ingresado ya existe. Por favor usa un SKU diferente.' : err.message; res.status(500).json({ error: msg }); }
 });
