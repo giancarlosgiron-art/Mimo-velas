@@ -29,6 +29,7 @@ app.use('/api/orders',    require('./routes/orders'));
 app.use('/api/reports',   require('./routes/reports'));
 app.use('/api/expenses',  require('./routes/expenses'));
 app.use('/api/aromas',    require('./routes/aromas'));
+app.use('/api/site',      require('./routes/site'));
 
 // SPA fallback
 app.get('*', (req, res) => {

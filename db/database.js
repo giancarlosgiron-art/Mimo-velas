@@ -86,6 +86,10 @@ async function initSchema() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     ALTER TABLE products ADD COLUMN IF NOT EXISTS aroma TEXT;
+    CREATE TABLE IF NOT EXISTS site_content (
+      key TEXT PRIMARY KEY, data JSONB NOT NULL, updated_by TEXT,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
     CREATE TABLE IF NOT EXISTS expenses (
       id SERIAL PRIMARY KEY, date TEXT NOT NULL, amount REAL NOT NULL,
       description TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'Otros',

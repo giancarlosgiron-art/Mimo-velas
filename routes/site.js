@@ -1,0 +1,158 @@
+const express = require('express');
+const router = express.Router();
+const pool = require('../db/database');
+const { authMiddleware } = require('../middleware/auth');
+
+// Contenido editable de la página pública (catálogo): textos, cinta superior, colores y tipografías.
+// Se edita en el panel → "Mi página". Cada bloque se guarda por separado en site_content (key → JSON).
+// Los valores por defecto son los textos actuales del catálogo: si un bloque nunca se editó, se usan estos.
+
+const FONTS_DISPLAY = ['fraunces', 'playfair', 'dmserif', 'cormorant', 'lora'];
+const FONTS_BODY = ['mulish', 'nunito', 'dmsans', 'worksans', 'quicksand'];
+const HEX = /^#[0-9a-fA-F]{6}$/;
+
+const DEFAULTS = {
+  diseno: {
+    primary: '#62121D',     // Borgoña: titulares, botones, bloques principales
+    secondary: '#6E734D',   // Verde: segunda colección, detalles
+    background: '#F0EEE9',  // Crema: fondo de la página
+    ink: '#2B1D1F',         // Tinta: texto
+    soft1: '#D9CBC8',       // Rosa polvo: fondos suaves
+    soft2: '#D6D5CA',       // Pistacho: fondos suaves
+    font_display: 'fraunces',
+    font_body: 'mulish',
+    motion: true,           // animaciones y efectos en movimiento
+  },
+  general: {
+    site_title: 'mimo — Velas aromáticas hechas a mano',
+    site_description: 'Velas aromáticas de soja hechas a mano en Santiago. Elige el diseño y el aroma. Hecho con mimo.',
+    whatsapp: '56976720121',
+    whatsapp_label: '+56 9 7672 0121',
+  },
+  cinta: {
+    enabled: true,
+    items: ['Hecho a mano en Santiago', 'Pedidos por WhatsApp', 'El aroma lo eliges tú', 'Cera de soja', 'Tandas chicas', 'Un detalle que huele y se ve bien'],
+  },
+  portada: {
+    eyebrow: 'Velas aromáticas · Hechas a mano en Santiago',
+    title: 'Un detalle que huele y se ve bien.',
+    text: 'Velas de soja hechas a mano, en tandas chicas. Algunas parecen postres o tragos, otras son simples y elegantes. Tú eliges el diseño y el aroma.',
+    cta_label: 'Ver las velas',
+    link_label: 'Cómo pedir',
+  },
+  catalogo: {
+    home_eyebrow: 'El catálogo',
+    home_title: 'Un aroma para cada espacio.',
+    page_eyebrow: 'Catálogo · Velas aromáticas',
+    page_title: 'Detalles para regalarte.',
+    footnote: 'Precios en pesos chilenos · Velas decorativas, no comestibles.',
+  },
+  frases: {
+    items: [
+      { eyebrow: 'Para regalar', text: 'Detalles para regalarte.' },
+      { eyebrow: '', text: 'El diseño enamora. El aroma lo eliges tú.' },
+      { eyebrow: 'Hecho con mimo', text: 'Un mimo para alguien que se lo merece.' },
+      { eyebrow: 'Cera de soja', text: 'Hechas a mano, en tandas chicas.' },
+    ],
+  },
+  tu_gusto: {
+    title: 'Tu vela,\na tu gusto.',
+    text: 'Elige el diseño que más te guste. Podemos hacerlo con cualquiera de nuestros aromas disponibles.',
+    list_title: 'Aromas disponibles',
+    band_title: 'El diseño enamora.\nEl aroma lo eliges tú.',
+    band_text: 'Pedidos personalizados por encargo.',
+    cta_label: 'Encargar por WhatsApp',
+  },
+  como_pedir: {
+    eyebrow: 'Cómo pedir',
+    title: 'Tres pasos y es tuya',
+    steps: [
+      { title: 'Elige tu vela', text: 'Mira el catálogo, elige el diseño y el aroma, y súmala a tu pedido con el botón +.' },
+      { title: 'Envíalo por WhatsApp', text: 'Tu pedido llega armado a nuestro WhatsApp, con velas, aromas, cantidades y total.' },
+      { title: 'Te confirmamos', text: 'Te respondemos con la disponibilidad y coordinamos juntos el pago y la entrega.' },
+    ],
+  },
+  cuidado: {
+    eyebrow: 'Cuidado',
+    title: 'Cómo cuidar tu vela',
+    text: 'Algunas parecen postres o tragos, pero todas son velas decorativas: ninguna se come.',
+    steps: [
+      { title: 'El primer encendido es el más importante', text: 'Déjala encendida hasta que la cera se derrita de borde a borde. Así no se hace un túnel y la disfrutas entera.' },
+      { title: 'Corta la mecha a 5 mm', text: 'Antes de cada uso. La llama queda estable, no humea y el aroma se siente mejor.' },
+      { title: 'Siempre a la vista', text: 'No la dejes encendida sin supervisión. Mantenla lejos de niños, mascotas y cortinas.' },
+    ],
+    card_title: 'Para que dure más',
+    card_text: 'Corta la mecha a 5 mm antes de cada uso y no la dejes encendida sin supervisión. Mantenla lejos de niños y mascotas.',
+    card_note: 'Vela decorativa. No comestible.',
+  },
+  pie: {
+    tagline: 'Un detalle que huele y se ve bien.',
+    location: 'Hecho a mano en Santiago, Chile',
+    note: 'Vela decorativa. No comestible.',
+  },
+};
+
+// Limpia lo que llega usando el valor por defecto como "molde":
+// solo se guardan los campos conocidos, con el tipo correcto y largo razonable.
+function sanitize(value, model, path) {
+  if (typeof model === 'boolean') return value === undefined ? model : !!value;
+  if (typeof model === 'string') {
+    if (value === undefined || value === null) return model;
+    const s = String(value).replace(/\r\n/g, '\n').trim().slice(0, 2000);
+    if (HEX.test(model)) {
+      if (!HEX.test(s)) throw new Error(`Color inválido en "${path}"`);
+      return s.toUpperCase();
+    }
+    if (path === 'diseno.font_display' && !FONTS_DISPLAY.includes(s)) throw new Error('Tipografía de títulos inválida');
+    if (path === 'diseno.font_body' && !FONTS_BODY.includes(s)) throw new Error('Tipografía de texto inválida');
+    return s;
+  }
+  if (Array.isArray(model)) {
+    if (!Array.isArray(value)) return model;
+    const item = model[0];
+    return value.slice(0, 20).map((v, i) => sanitize(v, item, `${path}[${i}]`))
+      .filter(v => typeof v === 'string' ? v !== '' : true);
+  }
+  if (model && typeof model === 'object') {
+    const src = value && typeof value === 'object' ? value : {};
+    const out = {};
+    for (const k of Object.keys(model)) out[k] = sanitize(src[k], model[k], `${path}.${k}`);
+    return out;
+  }
+  return model;
+}
+
+// Público: todo el contenido, con los valores por defecto donde no haya nada guardado
+router.get('/', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT key, data FROM site_content');
+    const saved = Object.fromEntries(rows.map(r => [r.key, r.data]));
+    const out = {};
+    for (const key of Object.keys(DEFAULTS)) {
+      try { out[key] = sanitize(saved[key], DEFAULTS[key], key); } catch { out[key] = DEFAULTS[key]; }
+    }
+    res.set('Cache-Control', 'no-store');
+    res.json(out);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Los valores originales, para el botón "Restaurar" del panel
+router.get('/defaults', authMiddleware, (req, res) => res.json(DEFAULTS));
+
+router.put('/:key', authMiddleware, async (req, res) => {
+  const key = req.params.key;
+  if (!DEFAULTS[key]) return res.status(404).json({ error: 'Sección no encontrada' });
+  let data;
+  try { data = sanitize(req.body, DEFAULTS[key], key); }
+  catch (err) { return res.status(400).json({ error: err.message }); }
+  try {
+    await pool.query(
+      `INSERT INTO site_content (key, data, updated_by, updated_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+       ON CONFLICT (key) DO UPDATE SET data = EXCLUDED.data, updated_by = EXCLUDED.updated_by, updated_at = CURRENT_TIMESTAMP`,
+      [key, JSON.stringify(data), req.user.name]
+    );
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+module.exports = router;

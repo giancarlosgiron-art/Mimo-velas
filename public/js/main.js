@@ -14,6 +14,7 @@ const PAGE_TITLES = {
   orders: 'Pedidos y Reservas',
   reports: 'Reportes',
   expenses: 'Gastos',
+  site: 'Mi página',
 };
 
 const HEADER_ACTIONS = {
@@ -24,6 +25,7 @@ const HEADER_ACTIONS = {
   orders:    { text: '+ Pedido', action: 'openOrderModal' },
   reports:   { text: '📊 Generar', action: 'loadReports' },
   expenses:  { text: '+ Registrar gasto', action: 'openExpenseModal' },
+  site:      { text: 'Ver página ↗', action: 'openCatalogSite' },
 };
 
 // ── Init ──────────────────────────────────────────
@@ -142,6 +144,7 @@ async function navigate(page) {
     case 'orders':    await loadOrders(); break;
     case 'reports':   await loadReports(); break;
     case 'expenses':  await loadExpenses(); break;
+    case 'site':      await loadSite(); break;
   }
 }
 

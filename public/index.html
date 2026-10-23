@@ -111,6 +111,13 @@
           <span class="nav-icon">💸</span> Gastos
         </div>
       </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Tienda online</div>
+        <div class="nav-item" data-page="site">
+          <span class="nav-icon">✨</span> Mi página
+        </div>
+      </div>
     </nav>
 
     <div class="sidebar-footer">
@@ -350,6 +357,17 @@
       </div>
 
       <!-- ═══ EXPENSES ═══ -->
+      <!-- ═══ MI PÁGINA (editor del catálogo público) ═══ -->
+      <div class="page" id="page-site">
+        <div class="page-header">
+          <div class="page-header-left">
+            <h2>Mi página</h2>
+            <p>Edita los textos, la cinta superior, los colores y las tipografías del catálogo. Los cambios se ven al guardar.</p>
+          </div>
+        </div>
+        <div id="site-editor"></div>
+      </div>
+
       <div class="page" id="page-expenses">
         <div class="page-header">
           <div class="page-header-left">
@@ -747,6 +765,7 @@
 <script src="/js/orders.js"></script>
 <script src="/js/reports.js"></script>
 <script src="/js/expenses.js"></script>
+<script src="/js/site.js"></script>
 <script src="/js/main.js"></script>
 <script>
   if ('serviceWorker' in navigator) {
