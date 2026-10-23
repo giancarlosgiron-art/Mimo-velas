@@ -41,6 +41,8 @@ const DEFAULTS = {
     text: 'Velas de soja hechas a mano, en tandas chicas. Algunas parecen postres o tragos, otras son simples y elegantes. Tú eliges el diseño y el aroma.',
     cta_label: 'Ver las velas',
     link_label: 'Cómo pedir',
+    // Fotos propias de la portada (rotan). Vacío = rotan las velas más vendidas/nuevas.
+    slides: [],
   },
   catalogo: {
     home_eyebrow: 'El catálogo',
@@ -106,6 +108,11 @@ const DEFAULTS = {
   },
 };
 
+// Forma de cada elemento en las listas que por defecto vienen vacías
+const ITEM_MODELS = {
+  'portada.slides': { image: '', title: '', subtitle: '', link: '' },
+};
+
 // Limpia lo que llega usando el valor por defecto como "molde":
 // solo se guardan los campos conocidos, con el tipo correcto y largo razonable.
 function sanitize(value, model, path) {
@@ -123,7 +130,7 @@ function sanitize(value, model, path) {
   }
   if (Array.isArray(model)) {
     if (!Array.isArray(value)) return model;
-    const item = model.length ? model[0] : '';
+    const item = model.length ? model[0] : (ITEM_MODELS[path] ?? '');
     return value.slice(0, 20).map((v, i) => sanitize(v, item, `${path}[${i}]`))
       .filter(v => typeof v === 'string' ? v !== '' : true);
   }

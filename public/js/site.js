@@ -32,10 +32,10 @@ const SITE_SECTIONS = [
     { name: 'font_body',    type: 'font', label: 'Tipografía de textos',  options: BODY_FONTS },
     { name: 'motion', type: 'toggle', label: 'Animaciones y efectos en movimiento', hint: 'Cinta en movimiento, burbujas flotando, velas que rotan…' },
   ]},
-  { key: 'banners', title: 'Banners especiales', icon: '🎄', desc: 'Banners grandes arriba del inicio para ocasiones especiales (Navidad, Día de la Madre…). Solo se muestran los activos.', fields: [
+  { key: 'banners', title: 'Banners especiales', icon: '🎄', desc: 'Franja debajo de la portada para ocasiones especiales (Navidad, Día de la Madre…). Solo se muestran los activos.', fields: [
     { name: 'items', type: 'group', label: 'Banners', addLabel: '+ Agregar banner', itemLabel: 'Banner', subfields: [
       { name: 'active', type: 'toggle', label: 'Activo (se muestra en la página)' },
-      { name: 'image', type: 'image', label: 'Imagen', hint: 'Horizontal, idealmente 1600 × 700 px o más. Se achica sola al subirla.' },
+      { name: 'image', type: 'image', label: 'Imagen', hint: 'Bien horizontal (es una franja), idealmente 1800 × 500 px. Se achica sola al subirla.' },
       { name: 'eyebrow', type: 'text', label: 'Texto pequeño (opcional)' },
       { name: 'title', type: 'text', label: 'Título' },
       { name: 'text', type: 'textarea', label: 'Texto', rows: 2 },
@@ -55,6 +55,12 @@ const SITE_SECTIONS = [
     { name: 'text',       type: 'textarea', label: 'Descripción', rows: 3 },
     { name: 'cta_label',  type: 'text',     label: 'Botón principal' },
     { name: 'link_label', type: 'text',     label: 'Enlace secundario' },
+    { name: 'slides', type: 'group', label: 'Fotos de la portada', addLabel: '+ Agregar foto', itemLabel: 'Foto', subfields: [
+      { name: 'image', type: 'image', label: 'Foto', hint: 'Vertical (4:5), idealmente 1000 × 1250 px. Si no subes ninguna, rotan las velas más vendidas.' },
+      { name: 'title', type: 'text', label: 'Etiqueta · título', hint: 'Ej: Mandarín Martini' },
+      { name: 'subtitle', type: 'text', label: 'Etiqueta · texto pequeño', hint: 'Ej: Aroma a mandarina' },
+      { name: 'link', type: 'text', label: 'Al tocar la etiqueta lleva a', hint: 'Ej: /producto/12 o /catalogo?coleccion=bebidas (opcional)' },
+    ]},
   ]},
   { key: 'catalogo', title: 'Catálogo', icon: '🕯️', desc: 'Títulos del catálogo en el inicio y en la página del catálogo.', fields: [
     { name: 'home_eyebrow', type: 'text', label: 'Inicio · texto pequeño' },
