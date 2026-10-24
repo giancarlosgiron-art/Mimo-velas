@@ -1094,8 +1094,4 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 
 
 
-.site-ai-status { border-radius: 14px; padding: 10px 14px; font-size: 0.82rem; margin: 4px 0 10px; }
-.site-ai-status:empty { display: none; }
-.site-ai-status.ok { background: rgba(110,115,77,0.14); }
-.site-ai-status.warn { background: rgba(183,121,31,0.14); }
-.site-ai-status code { font-weight: 700; }
+

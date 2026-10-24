@@ -108,17 +108,8 @@ const DEFAULTS = {
     text: 'Elige el aroma y decórala con tus toppings favoritos. La hacemos a mano para ti.',
     base_name: 'Lata dorada',
     base_price: '17990',    // precio de la lata con su aroma (en pesos, sin puntos)
-    base_image: '',         // foto de la lata vista desde arriba (vacío = la foto incluida en el catálogo)
-    // Dónde está la cera en la foto (en % del ancho/alto) y dónde están las mechas, para que los toppings las esquiven
-    wax_x: '50.5',
-    wax_y: '49',
-    wax_r: '43',
-    wicks: '54,30;31,63;70,58',
+    base_image: '',         // foto de la lata para el carrito (en la página la lata es un dibujo)
     max_toppings: '5',
-    // Vista con IA (requiere GEMINI_API_KEY en Railway)
-    ai_enabled: true,
-    ai_per_visitor: '5',    // vistas nuevas por persona al día
-    ai_daily_limit: '60',   // vistas nuevas en total al día
     note: 'Los toppings son decorativos y no tienen aroma. Vela decorativa, no comestible.',
   },
   pie: {

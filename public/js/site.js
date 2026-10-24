@@ -552,10 +552,7 @@ const BUILDER_FIELDS = [
   { name: 'base_name', type: 'text', label: 'Nombre de la base', hint: 'Ej: Lata dorada' },
   { name: 'base_price', type: 'text', label: 'Precio de la base (con su aroma)', hint: 'En pesos, sin puntos. Ej: 17990' },
   { name: 'max_toppings', type: 'text', label: 'Máximo de toppings por vela', hint: 'Ej: 5' },
-  { name: 'base_image', type: 'image', label: 'Foto de la lata vista desde arriba', hint: 'Vacía = se usa la foto de la lata dorada que ya viene en la página. La IA la usa como base.' },
-  { name: 'ai_enabled', type: 'toggle', label: 'Botón "✨ Ver cómo quedaría" (foto con IA)', hint: 'Genera una foto referencial con los toppings elegidos. Requiere la clave GEMINI_API_KEY en Railway.' },
-  { name: 'ai_per_visitor', type: 'text', label: 'Fotos nuevas con IA por persona al día', hint: 'Las combinaciones repetidas no cuentan ni cuestan' },
-  { name: 'ai_daily_limit', type: 'text', label: 'Fotos nuevas con IA en total al día', hint: 'Tope para controlar el gasto' },
+  { name: 'base_image', type: 'image', label: 'Foto de la lata (opcional)', hint: 'Se muestra en el carrito. En la página, la lata es un dibujo con los toppings cayendo.' },
   { name: 'note', type: 'textarea', label: 'Nota al final', rows: 2 },
 ];
 
@@ -568,7 +565,6 @@ async function renderBuilderEditor(refetch = true) {
   const d = SiteEditor.draft;
   el.innerHTML = siteCard(section, `
     <div class="site-fields">${BUILDER_FIELDS.map(f => renderSiteField(f, d[f.name], f.name)).join('')}</div>
-    <div id="ai-status" class="site-ai-status"></div>
     <div class="site-builder-save">
       <span id="site-dirty" class="site-dirty" style="display:${SiteEditor.dirty ? '' : 'none'}">Cambios sin guardar</span>
       <button class="btn btn-primary btn-sm" id="site-save-btn" onclick="saveSiteSection()">Guardar ajustes</button>
@@ -577,7 +573,7 @@ async function renderBuilderEditor(refetch = true) {
     <div class="site-section-sep">
       <div class="card-title">Toppings</div>
       <div class="site-desc">Las decoraciones que el cliente puede poner sobre su vela. Se guardan al momento.
-        La IA usa esta misma foto como referencia: mientras más clara se vea la pieza, mejor queda.</div>
+        La foto se ve en una burbuja redonda: mientras más centrada esté la pieza, mejor se ve sobre la lata.</div>
     </div>
     <div class="site-toppings">
       ${toppings.map((t, i) => `
@@ -612,20 +608,6 @@ async function renderBuilderEditor(refetch = true) {
       </label>
     </div>
   `);
-  renderAiStatus();
-}
-
-// Estado de la IA: clave conectada y uso de las últimas 24 horas
-async function renderAiStatus() {
-  const el = document.getElementById('ai-status');
-  if (!el) return;
-  try {
-    const st = await API.request('GET', '/builder/admin-status');
-    el.innerHTML = st.key
-      ? `<strong>✨ IA conectada</strong> · últimas 24 h: ${st.today.generated} fotos nuevas, ${st.today.reused} reutilizadas (gratis)`
-      : `<strong>⚠️ Falta la clave de la IA.</strong> En Railway → servicio Mimo-velas → Variables, agrega <code>GEMINI_API_KEY</code> con la clave de Google AI Studio.`;
-    el.className = 'site-ai-status ' + (st.key ? 'ok' : 'warn');
-  } catch { el.textContent = ''; }
 }
 
 async function saveTopping(id, patch, rerender = false) {

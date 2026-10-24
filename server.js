@@ -33,7 +33,6 @@ app.use('/api/expenses',  require('./routes/expenses'));
 app.use('/api/aromas',    require('./routes/aromas'));
 app.use('/api/site',      require('./routes/site'));
 app.use('/api/toppings',  require('./routes/toppings'));
-app.use('/api/builder',   require('./routes/builder'));
 
 // SPA fallback
 app.get('*', (req, res) => {
