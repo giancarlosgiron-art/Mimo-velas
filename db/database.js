@@ -104,6 +104,8 @@ async function initSchema() {
       active INTEGER DEFAULT 1, position INTEGER DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+    -- Pieza recortada (PNG con transparencia) que se coloca sobre la foto de la lata
+    ALTER TABLE toppings ADD COLUMN IF NOT EXISTS cutout TEXT;
     CREATE TABLE IF NOT EXISTS expenses (
       id SERIAL PRIMARY KEY, date TEXT NOT NULL, amount REAL NOT NULL,
       description TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'Otros',
