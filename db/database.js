@@ -99,6 +99,11 @@ async function initSchema() {
     ALTER TABLE categories ADD COLUMN IF NOT EXISTS image TEXT;
     ALTER TABLE categories ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0;
     ALTER TABLE categories ADD COLUMN IF NOT EXISTS show_home INTEGER DEFAULT 1;
+    CREATE TABLE IF NOT EXISTS toppings (
+      id SERIAL PRIMARY KEY, name TEXT NOT NULL, image TEXT, price INTEGER DEFAULT 0,
+      active INTEGER DEFAULT 1, position INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
     CREATE TABLE IF NOT EXISTS expenses (
       id SERIAL PRIMARY KEY, date TEXT NOT NULL, amount REAL NOT NULL,
       description TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'Otros',

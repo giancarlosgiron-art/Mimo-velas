@@ -101,6 +101,17 @@ const DEFAULTS = {
     product_ids: [],        // elegidos y ordenados en el panel
     auto: true,             // si faltan, completar con los más vendidos reales
   },
+  arma_tu_vela: {
+    enabled: false,         // se muestra en la página cuando esté listo
+    eyebrow: 'Nuevo',
+    title: 'Arma tu vela',
+    text: 'Elige el aroma y decórala con tus toppings favoritos. La hacemos a mano para ti.',
+    base_name: 'Lata dorada',
+    base_price: '17990',    // precio de la lata con su aroma (en pesos, sin puntos)
+    base_image: '',
+    max_toppings: '5',
+    note: 'Los toppings son decorativos y no tienen aroma. Vela decorativa, no comestible.',
+  },
   pie: {
     tagline: 'Un detalle que huele y se ve bien.',
     location: 'Hecho a mano en Santiago, Chile',

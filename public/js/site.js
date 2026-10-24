@@ -44,6 +44,7 @@ const SITE_SECTIONS = [
     ]},
   ]},
   { key: 'categorias', title: 'Categorías', icon: '🗂️', desc: 'Las categorías del catálogo: banner, descripción, orden y si aparecen en "Compra por categoría" del inicio.', custom: true },
+  { key: 'arma_tu_vela', title: 'Arma tu vela', icon: '🧁', desc: 'La página donde el cliente arma su vela: lata dorada + aroma + toppings. Aquí la activas y administras los toppings.', custom: true },
   { key: 'destacados', title: 'Más vendidos', icon: '⭐', desc: 'Elige y ordena las velas que aparecen en "Los más vendidos" del inicio.', custom: true },
   { key: 'cinta', title: 'Cinta superior', icon: '🎞️', desc: 'Los mensajes que pasan en movimiento arriba de la página.', fields: [
     { name: 'enabled', type: 'toggle', label: 'Mostrar la cinta' },
@@ -152,6 +153,7 @@ function selectSiteSection(key, force = false) {
   if (!force && SiteEditor.dirty && !confirm('Tienes cambios sin guardar en esta sección. ¿Descartarlos?')) return;
   SiteEditor.current = key;
   if (key === 'categorias') { SiteEditor.dirty = false; return renderCategoriesEditor(); }
+  if (key === 'arma_tu_vela') { SiteEditor.draft = JSON.parse(JSON.stringify(SiteEditor.data.arma_tu_vela)); SiteEditor.dirty = false; return renderBuilderEditor(); }
   if (key === 'destacados') { SiteEditor.draft = JSON.parse(JSON.stringify(SiteEditor.data.destacados)); SiteEditor.dirty = false; return renderFeaturedEditor(); }
   SiteEditor.draft = JSON.parse(JSON.stringify(SiteEditor.data[key]));
   SiteEditor.dirty = false;
@@ -160,6 +162,7 @@ function selectSiteSection(key, force = false) {
 
 function renderSiteEditor() {
   if (SiteEditor.current === 'destacados') return renderFeaturedEditor();
+  if (SiteEditor.current === 'arma_tu_vela') return renderBuilderEditor();
   if (SiteEditor.current === 'categorias') return renderCategoriesEditor();
   const section = SITE_SECTIONS.find(s => s.key === SiteEditor.current);
   const el = document.getElementById('site-editor');
@@ -536,4 +539,117 @@ function addFeatured() {
   SiteEditor.draft.product_ids = [...SiteEditor.draft.product_ids.filter(x => SiteEditor.products.some(p => String(p.id) === x)), id];
   markSiteDirty();
   renderFeaturedEditor();
+}
+
+// ── Arma tu vela: ajustes + toppings ──────────────
+const BUILDER_FIELDS = [
+  { name: 'enabled', type: 'toggle', label: 'Mostrar "Arma tu vela" en la página', hint: 'Aparece en el menú, en el inicio y en /arma-tu-vela' },
+  { name: 'eyebrow', type: 'text', label: 'Texto pequeño' },
+  { name: 'title', type: 'text', label: 'Título' },
+  { name: 'text', type: 'textarea', label: 'Descripción', rows: 2 },
+  { name: 'base_name', type: 'text', label: 'Nombre de la base', hint: 'Ej: Lata dorada' },
+  { name: 'base_price', type: 'text', label: 'Precio de la base (con su aroma)', hint: 'En pesos, sin puntos. Ej: 17990' },
+  { name: 'max_toppings', type: 'text', label: 'Máximo de toppings por vela', hint: 'Ej: 5' },
+  { name: 'base_image', type: 'image', label: 'Foto de la base (opcional)', hint: 'Se muestra en el carrito. La vista de la lata en la página es un dibujo.' },
+  { name: 'note', type: 'textarea', label: 'Nota al final', rows: 2 },
+];
+
+async function renderBuilderEditor() {
+  const section = SITE_SECTIONS.find(s => s.key === 'arma_tu_vela');
+  const el = document.getElementById('site-editor');
+  const toppings = await API.toppings();
+  SiteEditor.toppings = toppings;
+  const d = SiteEditor.draft;
+  el.innerHTML = siteCard(section, `
+    <div class="site-fields">${BUILDER_FIELDS.map(f => renderSiteField(f, d[f.name], f.name)).join('')}</div>
+    <div class="site-builder-save">
+      <span id="site-dirty" class="site-dirty" style="display:${SiteEditor.dirty ? '' : 'none'}">Cambios sin guardar</span>
+      <button class="btn btn-primary btn-sm" id="site-save-btn" onclick="saveSiteSection()">Guardar ajustes</button>
+    </div>
+
+    <div class="site-section-sep">
+      <div class="card-title">Toppings</div>
+      <div class="site-desc">Las decoraciones que el cliente puede poner sobre su vela. Se guardan al momento.</div>
+    </div>
+    <div class="site-toppings">
+      ${toppings.map((t, i) => `
+        <div class="site-topping ${t.active ? '' : 'is-off'}">
+          <label class="site-topping-img" title="Cambiar foto">
+            ${t.image ? `<img src="${siteEsc(t.image)}" alt="" />` : '<span>+ foto</span>'}
+            <input type="file" accept="image/*" hidden onchange="uploadToppingImage(${t.id}, this)" />
+          </label>
+          <div class="site-topping-fields">
+            <input class="form-control" value="${siteEsc(t.name)}" onchange="saveTopping(${t.id}, { name: this.value })" />
+            <div class="site-topping-price">
+              <span>+ $</span>
+              <input class="form-control" type="number" min="0" step="100" value="${t.price}" onchange="saveTopping(${t.id}, { price: this.value })" />
+            </div>
+          </div>
+          <div class="site-topping-actions">
+            <label class="site-toggle" title="Activo">
+              <input type="checkbox" ${t.active ? 'checked' : ''} onchange="saveTopping(${t.id}, { active: this.checked }, true)" />
+              <span class="site-switch"></span>
+            </label>
+            <span class="site-move">
+              <button type="button" class="btn btn-ghost btn-sm btn-icon" title="Subir" ${i === 0 ? 'disabled' : ''} onclick="moveTopping(${i}, -1)">↑</button>
+              <button type="button" class="btn btn-ghost btn-sm btn-icon" title="Bajar" ${i === toppings.length - 1 ? 'disabled' : ''} onclick="moveTopping(${i}, 1)">↓</button>
+              <button type="button" class="btn btn-ghost btn-sm btn-icon" title="Eliminar" onclick="deleteTopping(${t.id}, this.dataset.name)" data-name="${siteEsc(t.name)}">🗑️</button>
+            </span>
+          </div>
+        </div>`).join('')}
+      <label class="site-topping site-topping-new">
+        <span class="site-topping-img"><span>+</span></span>
+        <div><strong>Agregar topping</strong><br><small class="site-hint">Elige una foto; después le pones nombre y precio</small></div>
+        <input type="file" accept="image/*" hidden onchange="createToppingFromPhoto(this)" />
+      </label>
+    </div>
+  `);
+}
+
+async function saveTopping(id, patch, rerender = false) {
+  try {
+    await API.updateTopping(id, patch);
+    toast('Guardado ✓', 'success');
+    if (rerender || 'image' in patch) await renderBuilderEditor();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function uploadToppingImage(id, input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  try {
+    toast('Subiendo foto…', 'info');
+    await saveTopping(id, { image: await uploadSiteImage(file) });
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function createToppingFromPhoto(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  try {
+    toast('Subiendo foto…', 'info');
+    const image = await uploadSiteImage(file);
+    const base = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
+    await API.createTopping({ name: base ? base.charAt(0).toUpperCase() + base.slice(1) : 'Nuevo topping', image, price: 0 });
+    toast('Topping agregado ✓ Cámbiale el nombre si quieres', 'success');
+    await renderBuilderEditor();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function moveTopping(i, dir) {
+  const list = SiteEditor.toppings.slice();
+  [list[i], list[i + dir]] = [list[i + dir], list[i]];
+  try {
+    await Promise.all(list.map((t, pos) => API.updateTopping(t.id, { position: pos + 1 })));
+    await renderBuilderEditor();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function deleteTopping(id, name) {
+  if (!confirm(`¿Eliminar el topping "${name}"?`)) return;
+  try {
+    await API.deleteTopping(id);
+    toast('Topping eliminado', 'info');
+    await renderBuilderEditor();
+  } catch (err) { toast(err.message, 'error'); }
 }
