@@ -66,7 +66,13 @@ async function callGemini(parts) {
       signal: ctrl.signal,
     });
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json.error?.message || `Error ${res.status} de la IA`);
+    if (!res.ok) {
+      // El detalle técnico (en inglés) queda en los registros; al cliente, un mensaje amable
+      console.error(`Gemini ${res.status}:`, json.error?.message);
+      throw new Error(res.status === 429
+        ? 'La vista con IA no está disponible en este momento. Igual puedes agregar tu vela al pedido.'
+        : 'No pudimos crear la imagen ahora. Intenta en un rato o agrega tu vela al pedido.');
+    }
     const out = (json.candidates?.[0]?.content?.parts || []).find(p => p.inlineData || p.inline_data);
     const img = out && (out.inlineData || out.inline_data);
     if (!img?.data) throw new Error('La IA no devolvió una imagen. Intenta con otra combinación.');
