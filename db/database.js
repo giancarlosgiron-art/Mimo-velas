@@ -106,6 +106,12 @@ async function initSchema() {
     );
     -- Pieza recortada (PNG con transparencia) que se coloca sobre la foto de la lata
     ALTER TABLE toppings ADD COLUMN IF NOT EXISTS cutout TEXT;
+    -- Fotos de "Arma tu vela" generadas con IA (generated=0: combinación reutilizada, sin costo)
+    CREATE TABLE IF NOT EXISTS ai_renders (
+      id SERIAL PRIMARY KEY, combo_hash TEXT NOT NULL, image_id INTEGER, ip TEXT,
+      generated INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS ai_renders_combo ON ai_renders (combo_hash);
     CREATE TABLE IF NOT EXISTS expenses (
       id SERIAL PRIMARY KEY, date TEXT NOT NULL, amount REAL NOT NULL,
       description TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'Otros',

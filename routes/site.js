@@ -115,6 +115,10 @@ const DEFAULTS = {
     wax_r: '43',
     wicks: '54,30;31,63;70,58',
     max_toppings: '5',
+    // Vista con IA (requiere GEMINI_API_KEY en Railway)
+    ai_enabled: true,
+    ai_per_visitor: '5',    // vistas nuevas por persona al día
+    ai_daily_limit: '60',   // vistas nuevas en total al día
     note: 'Los toppings son decorativos y no tienen aroma. Vela decorativa, no comestible.',
   },
   pie: {

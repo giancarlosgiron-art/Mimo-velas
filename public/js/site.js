@@ -552,7 +552,10 @@ const BUILDER_FIELDS = [
   { name: 'base_name', type: 'text', label: 'Nombre de la base', hint: 'Ej: Lata dorada' },
   { name: 'base_price', type: 'text', label: 'Precio de la base (con su aroma)', hint: 'En pesos, sin puntos. Ej: 17990' },
   { name: 'max_toppings', type: 'text', label: 'Máximo de toppings por vela', hint: 'Ej: 5' },
-  { name: 'base_image', type: 'image', label: 'Foto de la lata vista desde arriba', hint: 'Vacía = se usa la foto de la lata dorada que ya viene en la página. Si subes otra, marca abajo la cera y las mechas.' },
+  { name: 'base_image', type: 'image', label: 'Foto de la lata vista desde arriba', hint: 'Vacía = se usa la foto de la lata dorada que ya viene en la página. La IA la usa como base.' },
+  { name: 'ai_enabled', type: 'toggle', label: 'Botón "✨ Ver cómo quedaría" (foto con IA)', hint: 'Genera una foto referencial con los toppings elegidos. Requiere la clave GEMINI_API_KEY en Railway.' },
+  { name: 'ai_per_visitor', type: 'text', label: 'Fotos nuevas con IA por persona al día', hint: 'Las combinaciones repetidas no cuentan ni cuestan' },
+  { name: 'ai_daily_limit', type: 'text', label: 'Fotos nuevas con IA en total al día', hint: 'Tope para controlar el gasto' },
   { name: 'note', type: 'textarea', label: 'Nota al final', rows: 2 },
 ];
 
@@ -565,24 +568,7 @@ async function renderBuilderEditor(refetch = true) {
   const d = SiteEditor.draft;
   el.innerHTML = siteCard(section, `
     <div class="site-fields">${BUILDER_FIELDS.map(f => renderSiteField(f, d[f.name], f.name)).join('')}</div>
-    <div class="form-group site-full">
-      <label class="form-label">Cera y mechas en la foto</label>
-      <div class="tin-calib">
-        <div class="tin-calib-img" id="tin-calib" onclick="toggleWick(event)">
-          <img src="${siteEsc(d.base_image || CATALOG_URL + '/builder/lata-dorada.jpg')}" alt="" />
-          <span class="tin-calib-wax" style="left:${+d.wax_x - +d.wax_r}%;top:${+d.wax_y - +d.wax_r}%;width:${d.wax_r * 2}%;height:${d.wax_r * 2}%"></span>
-          ${parseWicksAdmin(d.wicks).map(w => `<span class="tin-calib-wick" style="left:${w.x}%;top:${w.y}%"></span>`).join('')}
-        </div>
-        <div>
-          <p class="site-hint" style="margin-top:0">El círculo punteado debe calzar con la cera. <strong>Toca la foto</strong> para marcar o quitar una mecha (los toppings las esquivan).</p>
-          ${['wax_x|Centro (horizontal)', 'wax_y|Centro (vertical)', 'wax_r|Tamaño'].map(x => {
-            const [k, label] = x.split('|');
-            return `<label class="form-label" style="margin-top:8px">${label}</label>
-              <input type="range" min="${k === 'wax_r' ? 20 : 20}" max="${k === 'wax_r' ? 50 : 80}" step="0.5" value="${siteEsc(d[k])}" style="width:100%" oninput="setSiteValue('${k}', this.value); updateCalibOverlay()" />`;
-          }).join('')}
-        </div>
-      </div>
-    </div>
+    <div id="ai-status" class="site-ai-status"></div>
     <div class="site-builder-save">
       <span id="site-dirty" class="site-dirty" style="display:${SiteEditor.dirty ? '' : 'none'}">Cambios sin guardar</span>
       <button class="btn btn-primary btn-sm" id="site-save-btn" onclick="saveSiteSection()">Guardar ajustes</button>
@@ -590,9 +576,8 @@ async function renderBuilderEditor(refetch = true) {
 
     <div class="site-section-sep">
       <div class="card-title">Toppings</div>
-      <div class="site-desc">Las decoraciones que el cliente puede poner sobre su vela. Se guardan al momento.<br>
-        <strong>Foto redonda</strong> = la que se ve para elegir. <strong>✂️ Pieza</strong> = lo que cae sobre la lata: recorta una sola pieza de la foto o sube un PNG sin fondo
-        (en iPhone/Mac: mantén presionado el objeto en la foto → "Copiar sujeto").</div>
+      <div class="site-desc">Las decoraciones que el cliente puede poner sobre su vela. Se guardan al momento.
+        La IA usa esta misma foto como referencia: mientras más clara se vea la pieza, mejor queda.</div>
     </div>
     <div class="site-toppings">
       ${toppings.map((t, i) => `
@@ -601,9 +586,6 @@ async function renderBuilderEditor(refetch = true) {
             ${t.image ? `<img src="${siteEsc(t.image)}" alt="" />` : '<span>+ foto</span>'}
             <input type="file" accept="image/*" hidden onchange="uploadToppingImage(${t.id}, this)" />
           </label>
-          <button type="button" class="site-topping-cut ${t.cutout ? '' : 'is-empty'}" title="Pieza que cae sobre la lata" onclick="openCutoutTool(${t.id})">
-            ${t.cutout ? `<img src="${siteEsc(t.cutout)}" alt="" />` : '<span>✂️<br>pieza</span>'}
-          </button>
           <div class="site-topping-fields">
             <input class="form-control" value="${siteEsc(t.name)}" onchange="saveTopping(${t.id}, { name: this.value })" />
             <div class="site-topping-price">
@@ -630,6 +612,20 @@ async function renderBuilderEditor(refetch = true) {
       </label>
     </div>
   `);
+  renderAiStatus();
+}
+
+// Estado de la IA: clave conectada y uso de las últimas 24 horas
+async function renderAiStatus() {
+  const el = document.getElementById('ai-status');
+  if (!el) return;
+  try {
+    const st = await API.request('GET', '/builder/admin-status');
+    el.innerHTML = st.key
+      ? `<strong>✨ IA conectada</strong> · últimas 24 h: ${st.today.generated} fotos nuevas, ${st.today.reused} reutilizadas (gratis)`
+      : `<strong>⚠️ Falta la clave de la IA.</strong> En Railway → servicio Mimo-velas → Variables, agrega <code>GEMINI_API_KEY</code> con la clave de Google AI Studio.`;
+    el.className = 'site-ai-status ' + (st.key ? 'ok' : 'warn');
+  } catch { el.textContent = ''; }
 }
 
 async function saveTopping(id, patch, rerender = false) {
@@ -692,163 +688,4 @@ async function shrinkPng(file, maxSize) {
     const blob = await new Promise(r => c.toBlob(r, 'image/png'));
     return blob ? new File([blob], 'pieza.png', { type: 'image/png' }) : file;
   } catch { return file; }
-}
-
-// ── Recortador de pieza: elegir una sola pieza de la foto, con bordes difuminados ──
-const CutoutTool = { topping: null, img: null, cx: 0.5, cy: 0.6, r: 0.18 };
-
-async function openCutoutTool(id) {
-  const t = SiteEditor.toppings.find(x => x.id === id);
-  if (!t) return;
-  CutoutTool.topping = t;
-  CutoutTool.cx = 0.5; CutoutTool.cy = 0.62; CutoutTool.r = 0.18;
-  let modal = document.getElementById('cutout-modal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'cutout-modal';
-    modal.className = 'modal-overlay';
-    document.body.appendChild(modal);
-    modal.addEventListener('click', e => { if (e.target === modal) closeModal('cutout-modal'); });
-  }
-  modal.innerHTML = `
-    <div class="modal" style="max-width:720px">
-      <div class="modal-header">
-        <h2 class="modal-title">✂️ Pieza de ${siteEsc(t.name)}</h2>
-        <button class="modal-close" onclick="closeModal('cutout-modal')">✕</button>
-      </div>
-      <div class="modal-body">
-        <p class="site-desc" style="margin-bottom:12px">Toca la foto sobre <strong>una sola pieza</strong> y ajusta el tamaño del círculo. Los bordes se difuminan para que se funda con la cera.</p>
-        <div class="cutout-grid">
-          <div>
-            ${t.image ? '<canvas id="cutout-src" class="cutout-src"></canvas>' : '<div class="site-image-empty" style="width:100%">Este topping no tiene foto</div>'}
-            <label class="form-label" style="margin-top:10px">Tamaño del círculo</label>
-            <input type="range" id="cutout-size" min="6" max="50" value="18" style="width:100%" oninput="CutoutTool.r = this.value / 100; drawCutout()" />
-          </div>
-          <div>
-            <label class="form-label">Así se verá sobre la lata</label>
-            <div class="cutout-preview"><canvas id="cutout-out" width="220" height="220"></canvas></div>
-            <label class="btn btn-secondary btn-sm" style="margin-top:12px;cursor:pointer">O subir PNG sin fondo
-              <input type="file" accept="image/png" hidden onchange="uploadCutoutPng(this)" />
-            </label>
-            ${t.cutout ? `<button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="saveTopping(${t.id}, { cutout: '' }, true); closeModal('cutout-modal')">Quitar pieza actual</button>` : ''}
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeModal('cutout-modal')">Cancelar</button>
-        <button class="btn btn-primary" id="cutout-save" onclick="saveCutout()" ${t.image ? '' : 'disabled'}>Guardar pieza</button>
-      </div>
-    </div>`;
-  openModal('cutout-modal');
-  if (!t.image) return;
-  const img = new Image();
-  img.onload = () => {
-    CutoutTool.img = img;
-    const src = document.getElementById('cutout-src');
-    const w = Math.min(380, src.parentElement.clientWidth || 380);
-    src.width = w; src.height = Math.round(w * img.height / img.width);
-    const pick = e => {
-      const rect = src.getBoundingClientRect();
-      CutoutTool.cx = (e.clientX - rect.left) / rect.width;
-      CutoutTool.cy = (e.clientY - rect.top) / rect.height;
-      drawCutout();
-    };
-    let dragging = false;
-    src.onpointerdown = e => { dragging = true; src.setPointerCapture(e.pointerId); pick(e); };
-    src.onpointermove = e => { if (dragging) pick(e); };
-    src.onpointerup = () => { dragging = false; };
-    drawCutout();
-  };
-  img.src = t.image;
-}
-
-// Dibuja la foto con el círculo elegido y la vista previa de la pieza difuminada
-function drawCutout() {
-  const { img, cx, cy, r } = CutoutTool;
-  if (!img) return;
-  const src = document.getElementById('cutout-src');
-  const ctx = src.getContext('2d');
-  ctx.clearRect(0, 0, src.width, src.height);
-  ctx.drawImage(img, 0, 0, src.width, src.height);
-  const R = r * Math.min(src.width, src.height);
-  ctx.save();
-  ctx.fillStyle = 'rgba(43,29,31,0.45)';
-  ctx.beginPath();
-  ctx.rect(0, 0, src.width, src.height);
-  ctx.arc(cx * src.width, cy * src.height, R, 0, Math.PI * 2, true);
-  ctx.fill('evenodd');
-  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(cx * src.width, cy * src.height, R, 0, Math.PI * 2); ctx.stroke();
-  ctx.restore();
-  const out = document.getElementById('cutout-out');
-  const piece = renderCutout(220);
-  const octx = out.getContext('2d');
-  octx.clearRect(0, 0, out.width, out.height);
-  octx.drawImage(piece, 0, 0);
-}
-
-// Genera la pieza (canvas cuadrado con transparencia y bordes suaves)
-function renderCutout(size) {
-  const { img, cx, cy, r } = CutoutTool;
-  const c = document.createElement('canvas');
-  c.width = size; c.height = size;
-  const ctx = c.getContext('2d');
-  const R = r * Math.min(img.width, img.height);
-  ctx.drawImage(img, cx * img.width - R, cy * img.height - R, R * 2, R * 2, 0, 0, size, size);
-  ctx.globalCompositeOperation = 'destination-in';
-  const g = ctx.createRadialGradient(size / 2, size / 2, size * 0.36, size / 2, size / 2, size / 2);
-  g.addColorStop(0, 'rgba(0,0,0,1)');
-  g.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, size, size);
-  return c;
-}
-
-async function saveCutout() {
-  const btn = document.getElementById('cutout-save');
-  btn.disabled = true; btn.textContent = 'Guardando…';
-  try {
-    const blob = await new Promise(r => renderCutout(512).toBlob(r, 'image/png'));
-    const { url } = await API.uploadSiteImage(new File([blob], 'pieza.png', { type: 'image/png' }));
-    closeModal('cutout-modal');
-    await saveTopping(CutoutTool.topping.id, { cutout: url });
-  } catch (err) {
-    toast(err.message, 'error');
-    btn.disabled = false; btn.textContent = 'Guardar pieza';
-  }
-}
-
-async function uploadCutoutPng(input) {
-  const file = input.files && input.files[0];
-  if (!file) return;
-  try {
-    toast('Subiendo pieza…', 'info');
-    const url = await uploadSiteImage(file);
-    closeModal('cutout-modal');
-    await saveTopping(CutoutTool.topping.id, { cutout: url });
-  } catch (err) { toast(err.message, 'error'); }
-}
-
-function parseWicksAdmin(str) {
-  return String(str || '').split(';').map(p => p.split(',').map(Number)).filter(p => p.length === 2 && p.every(Number.isFinite)).map(([x, y]) => ({ x, y }));
-}
-
-// Toca la foto: marca una mecha, o la quita si tocas cerca de una existente
-function toggleWick(e) {
-  const box = document.getElementById('tin-calib').getBoundingClientRect();
-  const x = +(((e.clientX - box.left) / box.width) * 100).toFixed(1);
-  const y = +(((e.clientY - box.top) / box.height) * 100).toFixed(1);
-  let wicks = parseWicksAdmin(SiteEditor.draft.wicks);
-  const near = wicks.findIndex(w => Math.hypot(w.x - x, w.y - y) < 5);
-  if (near >= 0) wicks.splice(near, 1); else wicks.push({ x, y });
-  setSiteValue('wicks', wicks.map(w => `${w.x},${w.y}`).join(';'));
-  renderBuilderEditor(false);
-}
-
-// Mueve solo el círculo de la cera (sin redibujar, para no cortar el arrastre del deslizador)
-function updateCalibOverlay() {
-  const d = SiteEditor.draft;
-  const el = document.querySelector('.tin-calib-wax');
-  if (!el) return;
-  Object.assign(el.style, { left: `${d.wax_x - d.wax_r}%`, top: `${d.wax_y - d.wax_r}%`, width: `${d.wax_r * 2}%`, height: `${d.wax_r * 2}%` });
 }

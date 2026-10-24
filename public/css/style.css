@@ -1092,19 +1092,10 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .site-topping-new { cursor: pointer; border: 2px dashed var(--border-strong); box-shadow: none; background: transparent; }
 .site-topping-new:hover { border-color: var(--mimo-borgona); }
 
-/* Recortador de pieza (Arma tu vela) */
-.site-topping-cut { width: 52px; height: 52px; flex-shrink: 0; border-radius: 14px; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 0.62rem; font-weight: 800; line-height: 1.2; color: var(--text-muted); background: #f3eee6 repeating-conic-gradient(rgba(43,29,31,.06) 0 25%, transparent 0 50%) 0 0 / 12px 12px; box-shadow: inset 0 0 0 1px var(--label-line); }
-.site-topping-cut img { width: 100%; height: 100%; object-fit: contain; }
-.site-topping-cut.is-empty { border: 2px dashed var(--border-strong); box-shadow: none; }
-.site-topping-cut:hover { box-shadow: inset 0 0 0 2px var(--mimo-borgona); }
-.cutout-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; align-items: start; }
-.cutout-src { width: 100%; border-radius: 14px; cursor: crosshair; touch-action: none; display: block; }
-.cutout-preview { border-radius: 50%; aspect-ratio: 1; overflow: hidden; background: radial-gradient(circle at 40% 35%, #fffaf0, #eadfcb); box-shadow: inset 0 0 0 6px #c9993d, inset 0 0 0 9px #8f6420, 0 10px 24px -10px rgba(43,29,31,.4); display: flex; align-items: center; justify-content: center; }
-.cutout-preview canvas { width: 62%; height: 62%; filter: drop-shadow(0 6px 6px rgba(43,29,31,.35)); }
-@media (max-width: 700px) { .cutout-grid { grid-template-columns: 1fr; } }
-.tin-calib { display: grid; grid-template-columns: 260px 1fr; gap: 16px; align-items: start; }
-.tin-calib-img { position: relative; border-radius: 16px; overflow: hidden; cursor: crosshair; aspect-ratio: 1; }
-.tin-calib-img img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
-.tin-calib-wax { position: absolute; border: 2px dashed #fff; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,.35); pointer-events: none; }
-.tin-calib-wick { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--mimo-borgona); border: 2px solid #fff; pointer-events: none; }
-@media (max-width: 900px) { .tin-calib { grid-template-columns: 1fr; } }
+
+
+.site-ai-status { border-radius: 14px; padding: 10px 14px; font-size: 0.82rem; margin: 4px 0 10px; }
+.site-ai-status:empty { display: none; }
+.site-ai-status.ok { background: rgba(110,115,77,0.14); }
+.site-ai-status.warn { background: rgba(183,121,31,0.14); }
+.site-ai-status code { font-weight: 700; }
