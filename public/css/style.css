@@ -1095,3 +1095,9 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 
 
 
+
+/* Detalle de pedidos web */
+.order-lines { display: flex; flex-direction: column; gap: 8px; }
+.order-line { display: flex; justify-content: space-between; gap: 12px; font-size: 0.86rem; padding-bottom: 8px; border-bottom: 1px solid var(--label-line); }
+.order-line:last-child { border-bottom: none; padding-bottom: 0; }
+.order-line small { color: var(--text-muted); }

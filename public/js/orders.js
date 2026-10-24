@@ -1,3 +1,8 @@
+// Texto escrito por clientes (pedidos web): siempre escapado antes de mostrarlo como HTML
+function escOrder(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 // ── Orders Module ────────────────────────────────────────────
 let currentOrderFilter = '';
 
@@ -41,14 +46,14 @@ function renderOrders(orders) {
 }
 
 function orderItem(o) {
-  const typeLabels = { reservation: '📌 Reserva', layaway: '🏷️ Apartado', custom_order: '✂️ Pedido personalizado' };
+  const typeLabels = { reservation: '📌 Reserva', layaway: '🏷️ Apartado', custom_order: '✂️ Pedido personalizado', web: '🛍️ Pedido web (catálogo)' };
   const balance = (o.total || 0) - (o.deposit || 0);
 
   return `
     <div class="order-item" onclick="openOrderDetail(${o.id})">
       <div class="order-header">
         <div>
-          <div class="order-id">Pedido #${o.id} — ${o.customer_name || 'Sin cliente'}</div>
+          <div class="order-id">Pedido #${o.id} — ${escOrder(o.customer_name || o.contact_name || 'Sin cliente')}</div>
           <div class="order-type">${typeLabels[o.type] || o.type}</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
@@ -59,7 +64,7 @@ function orderItem(o) {
           </div>
         </div>
       </div>
-      ${o.description ? `<div style="font-size:0.82rem;color:var(--text-muted);margin-top:6px">${o.description}</div>` : ''}
+      ${o.description ? `<div style="font-size:0.82rem;color:var(--text-muted);margin-top:6px;white-space:pre-line">${escOrder(o.description)}</div>` : ''}
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
         <div style="font-size:0.75rem;color:var(--text-muted)">
           📅 ${o.due_date ? `Entrega: ${fmtDate(o.due_date)}` : `Creado: ${fmtDate(o.created_at)}`}
@@ -123,13 +128,13 @@ async function saveOrder() {
 async function openOrderDetail(id) {
   try {
     const o = await API.order(id);
-    const typeLabels = { reservation: '📌 Reserva', layaway: '🏷️ Apartado', custom_order: '✂️ Pedido personalizado' };
+    const typeLabels = { reservation: '📌 Reserva', layaway: '🏷️ Apartado', custom_order: '✂️ Pedido personalizado', web: '🛍️ Pedido web (catálogo)' };
     const balance = (o.total || 0) - (o.deposit || 0);
 
     document.getElementById('od-title').textContent = `Pedido #${o.id}`;
     document.getElementById('od-body').innerHTML = `
       <div class="grid-2 mb-4">
-        <div><div class="stat-label">Cliente</div><div style="font-weight:600;margin-top:4px">${o.customer_name || '—'}</div>
+        <div><div class="stat-label">Cliente</div><div style="font-weight:600;margin-top:4px">${escOrder(o.customer_name || o.contact_name || '—')}</div>
           ${o.customer_phone ? `<div style="font-size:0.78rem;color:var(--text-muted)">📱 ${o.customer_phone}</div>` : ''}
           ${o.customer_ig ? `<div style="font-size:0.78rem;color:var(--text-muted)">📸 ${o.customer_ig}</div>` : ''}
         </div>
@@ -138,8 +143,16 @@ async function openOrderDetail(id) {
 
       <div class="report-card mb-4">
         <div style="font-weight:600;margin-bottom:10px">${typeLabels[o.type] || o.type}</div>
-        ${o.description ? `<p style="color:var(--text-secondary);font-size:0.875rem">${o.description}</p>` : ''}
-        ${o.notes ? `<p style="color:var(--text-muted);font-size:0.82rem;margin-top:6px;font-style:italic">${o.notes}</p>` : ''}
+        ${o.items && o.items.length ? `
+          <div class="order-lines">
+            ${o.items.map(it => `
+              <div class="order-line">
+                <div><strong>${it.quantity} × ${escOrder(it.product_name)}</strong>${it.notes ? `<br><small>${escOrder(it.notes)}</small>` : ''}</div>
+                <div>${fmt(it.unit_price * it.quantity)}</div>
+              </div>`).join('')}
+          </div>`
+          : (o.description ? `<p style="color:var(--text-secondary);font-size:0.875rem;white-space:pre-line">${escOrder(o.description)}</p>` : '')}
+        ${o.notes ? `<p style="color:var(--text-muted);font-size:0.82rem;margin-top:6px;font-style:italic">💬 ${escOrder(o.notes)}</p>` : ''}
       </div>
 
       <div class="grid-2 mb-4">
@@ -203,9 +216,9 @@ async function editOrder(id) {
     const o = await API.order(id);
     document.getElementById('od-body').innerHTML = `
       <div class="form-group"><label class="form-label">Cliente</label>
-        <input class="form-control" id="ed-customer" value="${o.customer_name||''}" placeholder="Nombre cliente"></div>
+        <input class="form-control" id="ed-customer" value="${escOrder(o.customer_name || o.contact_name || '')}" placeholder="Nombre cliente"></div>
       <div class="form-group"><label class="form-label">Descripción / Productos</label>
-        <textarea class="form-control" id="ed-items" rows="3" placeholder="Ej: Frambuesa cheesecake MIMO-001">${o.items||o.description||''}</textarea></div>
+        <textarea class="form-control" id="ed-items" rows="3" placeholder="Ej: Frambuesa cheesecake MIMO-001">${escOrder(o.description || '')}</textarea></div>
       <div class="grid-2 mb-4">
         <div class="form-group"><label class="form-label">Total</label>
           <input class="form-control" id="ed-total" type="number" value="${o.total||0}"></div>

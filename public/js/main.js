@@ -1,5 +1,10 @@
 // ── Main App — Router, Auth, Shell ──────────────────────────
 
+// Las notificaciones pueden traer texto escrito por clientes (pedidos web): se escapa siempre
+function escNotif(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 const App = {
   currentPage: 'dashboard',
   user: null,
@@ -241,8 +246,8 @@ async function loadNotifications() {
       <div class="notif-item ${n.is_read ? '' : 'unread'}" onclick="navigate('${(n.link||'/dashboard').replace('/','')}'||'dashboard');toggleNotifs()">
         <div class="notif-dot-indicator" style="background:${typeColors[n.type]||'var(--accent)'}"></div>
         <div class="notif-content">
-          <div class="notif-title">${n.title}</div>
-          ${n.message ? `<div class="notif-msg">${n.message}</div>` : ''}
+          <div class="notif-title">${escNotif(n.title)}</div>
+          ${n.message ? `<div class="notif-msg">${escNotif(n.message)}</div>` : ''}
           <div class="notif-time">${timeAgo(n.created_at)}</div>
         </div>
       </div>

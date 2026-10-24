@@ -46,6 +46,13 @@ const SITE_SECTIONS = [
   { key: 'categorias', title: 'Categorías', icon: '🗂️', desc: 'Las categorías del catálogo: banner, descripción, orden y si aparecen en "Compra por categoría" del inicio.', custom: true },
   { key: 'arma_tu_vela', title: 'Arma tu vela', icon: '🧁', desc: 'La página donde el cliente arma su vela: lata dorada + aroma + toppings. Aquí la activas y administras los toppings.', custom: true },
   { key: 'destacados', title: 'Más vendidos', icon: '⭐', desc: 'Elige y ordena las velas que aparecen en "Los más vendidos" del inicio.', custom: true },
+  { key: 'etiquetas', title: 'Etiquetas de las velas', icon: '🏷️', desc: 'Las etiquetas que aparecen sobre las fotos de las velas en el catálogo. Actívalas o apágalas cuando quieras.', fields: [
+    { name: 'nueva', type: 'toggle', label: '"Nueva"', hint: 'En las velas agregadas hace pocos días' },
+    { name: 'nueva_dias', type: 'text', label: 'Días que una vela cuenta como "Nueva"', hint: 'Ej: 14' },
+    { name: 'mas_pedida', type: 'toggle', label: '"La más pedida"', hint: 'En las velas de "Los más vendidos"' },
+    { name: 'poco_stock', type: 'toggle', label: '"Quedan pocas"', hint: 'Cuando el stock llega al mínimo que pusiste en Inventario' },
+    { name: 'oferta', type: 'toggle', label: '"Oferta"', hint: 'Cuando la vela tiene precio normal tachado' },
+  ]},
   { key: 'cinta', title: 'Cinta superior', icon: '🎞️', desc: 'Los mensajes que pasan en movimiento arriba de la página.', fields: [
     { name: 'enabled', type: 'toggle', label: 'Mostrar la cinta' },
     { name: 'items', type: 'list', label: 'Mensajes', placeholder: 'Ej: Envíos a todo Santiago', addLabel: '+ Agregar mensaje' },

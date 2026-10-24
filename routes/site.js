@@ -112,6 +112,14 @@ const DEFAULTS = {
     max_toppings: '5',
     note: 'Los toppings son decorativos y no tienen aroma. Vela decorativa, no comestible.',
   },
+  etiquetas: {
+    // Etiquetas sobre las fotos de las velas en el catálogo
+    nueva: true,
+    nueva_dias: '14',       // cuántos días una vela cuenta como "Nueva"
+    mas_pedida: true,
+    poco_stock: true,
+    oferta: true,
+  },
   pie: {
     tagline: 'Un detalle que huele y se ve bien.',
     location: 'Hecho a mano en Santiago, Chile',

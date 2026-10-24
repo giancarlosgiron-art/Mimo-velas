@@ -112,6 +112,9 @@ async function initSchema() {
       generated INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS ai_renders_combo ON ai_renders (combo_hash);
+    -- Pedidos desde el catálogo: nombre que dejó el cliente y de dónde vino
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS contact_name TEXT;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS source TEXT;
     CREATE TABLE IF NOT EXISTS expenses (
       id SERIAL PRIMARY KEY, date TEXT NOT NULL, amount REAL NOT NULL,
       description TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'Otros',
