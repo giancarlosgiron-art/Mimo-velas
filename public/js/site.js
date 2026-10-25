@@ -40,7 +40,8 @@ const SITE_SECTIONS = [
       { name: 'title', type: 'text', label: 'Título' },
       { name: 'text', type: 'textarea', label: 'Texto', rows: 2 },
       { name: 'cta_label', type: 'text', label: 'Botón (opcional)' },
-      { name: 'link', type: 'text', label: 'A dónde lleva el botón', hint: 'Ej: /catalogo, /catalogo?coleccion=postres o un link completo' },
+      { name: 'product_ids', type: 'products', label: 'Velas de esta colección especial', hint: 'Si eliges velas, el botón lleva a una página solo con ellas (con este banner arriba).' },
+      { name: 'link', type: 'text', label: 'Otro destino para el botón (opcional)', hint: 'Solo si no eliges velas arriba. Ej: /catalogo?coleccion=postres o un link completo' },
     ]},
   ]},
   { key: 'categorias', title: 'Categorías', icon: '🗂️', desc: 'Las categorías del catálogo: banner, descripción, orden y si aparecen en "Compra por categoría" del inicio.', custom: true },
@@ -161,6 +162,11 @@ function selectSiteSection(key, force = false) {
   SiteEditor.current = key;
   if (key === 'categorias') { SiteEditor.dirty = false; return renderCategoriesEditor(); }
   if (key === 'arma_tu_vela') { SiteEditor.draft = JSON.parse(JSON.stringify(SiteEditor.data.arma_tu_vela)); SiteEditor.dirty = false; return renderBuilderEditor(); }
+  if (key === 'banners' && !SiteEditor.products) {
+    // El selector de velas de cada banner necesita la lista de productos
+    return API.request('GET', '/products?admin=1').then(list => { SiteEditor.products = list; selectSiteSection(key, true); })
+      .catch(err => toast(err.message, 'error'));
+  }
   if (key === 'destacados') { SiteEditor.draft = JSON.parse(JSON.stringify(SiteEditor.data.destacados)); SiteEditor.dirty = false; return renderFeaturedEditor(); }
   SiteEditor.draft = JSON.parse(JSON.stringify(SiteEditor.data[key]));
   SiteEditor.dirty = false;
@@ -252,8 +258,30 @@ function renderSiteField(f, value, path) {
             ${siteMoveButtons(path, i, value.length)}
           </div>`).join('')}</div>
         <button type="button" class="btn btn-secondary btn-sm" onclick="addSiteItem('${path}', '')">${siteEsc(f.addLabel || '+ Agregar')}</button></div>`;
+    case 'products': {
+      const all = SiteEditor.products || [];
+      const byId = Object.fromEntries(all.map(p => [String(p.id), p]));
+      const chosen = (value || []).filter(id => byId[id]);
+      const selId = id + '-add';
+      return `<div class="form-group site-full"><label class="form-label">${siteEsc(f.label)}</label>
+        <div class="site-group">${chosen.length ? chosen.map((pid, i) => {
+          const p = byId[pid];
+          return `<div class="site-feat">
+            ${p.image ? `<img src="${siteEsc(p.image)}" alt="" />` : '<span class="site-feat-ph">🕯️</span>'}
+            <div><strong>${siteEsc(p.name)}</strong><br><small>${siteEsc(p.category_name || '')} · $${Number(p.sale_price).toLocaleString('es-CL')}</small></div>
+            ${siteMoveButtons(path, (value || []).indexOf(pid), (value || []).length)}
+          </div>`;
+        }).join('') : '<p class="site-hint">Sin velas elegidas.</p>'}</div>
+        <div class="site-list-row" style="margin-top:8px">
+          <select class="form-control" id="${selId}">
+            <option value="">Elige una vela para agregar…</option>
+            ${all.filter(p => !chosen.includes(String(p.id))).map(p => `<option value="${p.id}">${siteEsc(p.name)}</option>`).join('')}
+          </select>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="addSiteProduct('${path}', '${selId}')">+ Agregar</button>
+        </div>${hint}</div>`;
+    }
     case 'group': {
-      const blank = Object.fromEntries(f.subfields.map(s => [s.name, '']));
+      const blank = Object.fromEntries(f.subfields.map(s => [s.name, s.type === 'products' || s.type === 'list' ? [] : s.type === 'toggle' ? false : '']));
       return `<div class="form-group site-full"><label class="form-label">${siteEsc(f.label)}</label>
         <div class="site-group">${(value || []).map((item, i) => `
           <div class="site-group-item">
@@ -264,6 +292,16 @@ function renderSiteField(f, value, path) {
     }
   }
   return '';
+}
+
+function addSiteProduct(path, selId) {
+  const id = document.getElementById(selId).value;
+  if (!id) return;
+  const [obj, key] = siteRef(path);
+  const valid = (obj[key] || []).filter(x => (SiteEditor.products || []).some(p => String(p.id) === x));
+  obj[key] = [...valid, id];
+  markSiteDirty();
+  renderSiteEditor();
 }
 
 function siteMoveButtons(path, i, total) {

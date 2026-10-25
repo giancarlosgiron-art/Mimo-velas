@@ -92,7 +92,7 @@ const DEFAULTS = {
   banners: {
     // Banners de ocasiones especiales: arriba del inicio, solo los activos. Este de ejemplo viene apagado.
     items: [
-      { active: false, eyebrow: 'Edición limitada', title: 'Navidad con mimo', text: 'Velas de temporada para regalar y regalarte.', cta_label: 'Ver colección', link: '/catalogo', image: '' },
+      { active: false, eyebrow: 'Edición limitada', title: 'Navidad con mimo', text: 'Velas de temporada para regalar y regalarte.', cta_label: 'Ver colección', link: '', image: '', product_ids: [] },
     ],
   },
   destacados: {
@@ -150,7 +150,7 @@ function sanitize(value, model, path) {
   if (Array.isArray(model)) {
     if (!Array.isArray(value)) return model;
     const item = model.length ? model[0] : (ITEM_MODELS[path] ?? '');
-    return value.slice(0, 20).map((v, i) => sanitize(v, item, `${path}[${i}]`))
+    return value.slice(0, /product_ids$/.test(path) ? 80 : 20).map((v, i) => sanitize(v, item, `${path}[${i}]`))
       .filter(v => typeof v === 'string' ? v !== '' : true);
   }
   if (model && typeof model === 'object') {

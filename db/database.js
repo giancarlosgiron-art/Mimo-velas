@@ -86,6 +86,9 @@ async function initSchema() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     ALTER TABLE products ADD COLUMN IF NOT EXISTS aroma TEXT;
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS options_label TEXT;
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS options TEXT[] DEFAULT '{}';
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS allowed_aromas TEXT[] DEFAULT '{}';
     CREATE TABLE IF NOT EXISTS site_content (
       key TEXT PRIMARY KEY, data JSONB NOT NULL, updated_by TEXT,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

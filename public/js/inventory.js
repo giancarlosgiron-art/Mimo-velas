@@ -192,6 +192,22 @@ function setInventoryView(view) {
   filterInventory();
 }
 
+// ── Opciones del producto (figuras de wax melt, aromas posibles) ──
+function renderAllowedAromas(aromas, selected) {
+  const sel = new Set(selected.map(a => a.toLowerCase()));
+  // Aromas guardados que ya no están en la lista igual se muestran, para no perderlos
+  const names = [...aromas.map(a => a.name), ...selected.filter(a => !aromas.some(x => x.name.toLowerCase() === a.toLowerCase()))];
+  document.getElementById('pm-allowed-aromas').innerHTML = names.map(n => `
+    <label class="pm-chip"><input type="checkbox" value="${escapeHtml(n)}" ${sel.has(n.toLowerCase()) ? 'checked' : ''} /><span>${escapeHtml(n)}</span></label>`).join('')
+    || '<small class="site-hint">Aún no hay aromas. Agrégalos en "Aromas".</small>';
+}
+function readAllowedAromas() {
+  return [...document.querySelectorAll('#pm-allowed-aromas input:checked')].map(i => i.value);
+}
+function readProductOptions() {
+  return document.getElementById('pm-options').value.split('\n').map(s => s.trim()).filter(Boolean);
+}
+
 // ── Product Modal ─────────────────────────────────
 async function openProductModal(id = null) {
   editingProductId = id;
@@ -206,6 +222,9 @@ async function openProductModal(id = null) {
   const aromas = await API.aromas().catch(() => []);
   document.getElementById('pm-aroma-list').innerHTML = aromas.map(a => `<option value="${escapeHtml(a.name)}"></option>`).join('');
   document.getElementById('pm-aroma').value = '';
+  document.getElementById('pm-options-label').value = '';
+  document.getElementById('pm-options').value = '';
+  renderAllowedAromas(aromas, []);
 
   // Reset image field
   document.getElementById('pm-image').value = '';
@@ -219,6 +238,9 @@ async function openProductModal(id = null) {
     document.getElementById('pm-category').value = p.category_id || '';
     document.getElementById('pm-desc').value = p.description || '';
     document.getElementById('pm-aroma').value = p.aroma || '';
+    document.getElementById('pm-options-label').value = p.options_label || '';
+    document.getElementById('pm-options').value = (p.options || []).join('\n');
+    renderAllowedAromas(aromas, p.allowed_aromas || []);
     document.getElementById('pm-cost').value = p.cost_price;
     document.getElementById('pm-price').value = p.sale_price;
     document.getElementById('pm-price-eur').value = p.price_eur || '';
@@ -343,6 +365,9 @@ async function saveProduct() {
 		data.append('sku', document.getElementById('pm-sku').value.trim().toUpperCase() || '');
     data.append('description', document.getElementById('pm-desc').value || '');
     data.append('aroma', document.getElementById('pm-aroma').value.trim());
+    data.append('options_label', document.getElementById('pm-options-label').value.trim());
+    data.append('options', JSON.stringify(readProductOptions()));
+    data.append('allowed_aromas', JSON.stringify(readAllowedAromas()));
     data.append('category_id', document.getElementById('pm-category').value || '');
     data.append('cost_price', document.getElementById('pm-cost').value || 0);
     data.append('sale_price', document.getElementById('pm-price').value || 0);
@@ -358,6 +383,9 @@ async function saveProduct() {
       name,
       description: document.getElementById('pm-desc').value,
       aroma: document.getElementById('pm-aroma').value.trim(),
+      options_label: document.getElementById('pm-options-label').value.trim(),
+      options: readProductOptions(),
+      allowed_aromas: readAllowedAromas(),
       category_id: document.getElementById('pm-category').value || null,
       cost_price: document.getElementById('pm-cost').value || 0,
       sale_price: document.getElementById('pm-price').value || 0,

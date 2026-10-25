@@ -422,6 +422,26 @@
           <textarea class="form-control" id="pm-desc" placeholder="Ej: Vaso de vidrio con crema batida y arándanos" rows="2"></textarea>
         </div>
       </div>
+      <!-- Opciones que elige el cliente (ej. wax melts: figura + aromas posibles) -->
+      <div class="pm-options">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">¿Qué elige el cliente? (opcional)</label>
+            <input type="text" class="form-control" id="pm-options-label" placeholder="Ej: Figura" maxlength="40" />
+            <small class="site-hint">Para wax melts u otros con variantes. Vacío = "Opción".</small>
+          </div>
+          <div class="form-group" style="flex:2">
+            <label class="form-label">Opciones (una por línea)</label>
+            <textarea class="form-control" id="pm-options" rows="3" placeholder="Ej:&#10;Figuras de chocolate&#10;Frutillas&#10;Corazones"></textarea>
+            <small class="site-hint">Si dejas vacío, la vela no tiene opciones.</small>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Aromas que puede elegir el cliente</label>
+          <div class="pm-aroma-chips" id="pm-allowed-aromas"></div>
+          <small class="site-hint">Si no marcas ninguno, puede elegir entre todos los aromas.</small>
+        </div>
+      </div>
       <!-- mimo vende solo en Chile (CLP) -->
       <select id="pm-country" style="display:none"><option value="chile">Chile</option></select>
       <div class="form-row" id="pm-prices-row">
