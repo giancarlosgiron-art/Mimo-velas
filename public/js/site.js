@@ -111,6 +111,7 @@ const SITE_SECTIONS = [
     { name: 'card_title', type: 'text',     label: 'Tarjeta en cada vela · título' },
     { name: 'card_text',  type: 'textarea', label: 'Tarjeta en cada vela · texto', rows: 2 },
     { name: 'card_note',  type: 'text',     label: 'Tarjeta en cada vela · aviso' },
+    { name: 'product_note', type: 'textarea', label: 'Frase bajo el botón "Agregar a mi pedido"', rows: 2, hint: 'Vacío = no se muestra. Cada categoría puede tener la suya (Mi página → Categorías).' },
   ]},
   { key: 'pie', title: 'Pie de página', icon: '📍', desc: 'El bloque final de la página.', fields: [
     { name: 'tagline',  type: 'textarea', label: 'Frase', rows: 2 },
@@ -492,6 +493,26 @@ async function renderCategoriesEditor() {
                 <input type="checkbox" ${c.show_home ? 'checked' : ''} onchange="saveCategoryField(${c.id}, { show_home: this.checked })" />
                 <span class="site-switch"></span><span><strong>Mostrar en "Compra por categoría" del inicio</strong></span>
               </label>
+              <details class="site-cat-care" ${c.care_mode && c.care_mode !== 'general' || c.product_note ? 'open' : ''}>
+                <summary>Ficha de sus productos: tarjeta de cuidado y frase</summary>
+                <div class="form-group">
+                  <label class="form-label">Tarjeta "Para que dure más"</label>
+                  <select class="form-control" onchange="saveCategoryField(${c.id}, { care_mode: this.value }, true)">
+                    <option value="general" ${(c.care_mode || 'general') === 'general' ? 'selected' : ''}>Usar la general (Mi página → Cuidado)</option>
+                    <option value="custom" ${c.care_mode === 'custom' ? 'selected' : ''}>Usar una propia para esta categoría</option>
+                    <option value="hidden" ${c.care_mode === 'hidden' ? 'selected' : ''}>No mostrar tarjeta</option>
+                  </select>
+                </div>
+                ${c.care_mode === 'custom' ? `
+                <div class="form-group"><label class="form-label">Título</label>
+                  <input class="form-control" value="${siteEsc(c.care_title || '')}" placeholder="Ej: Cómo usar tu wax melt" onchange="saveCategoryField(${c.id}, { care_title: this.value })" /></div>
+                <div class="form-group"><label class="form-label">Texto</label>
+                  <textarea class="form-control" rows="3" placeholder="Ej: Pon 1 o 2 figuras en el plato del quemador y enciende una vela de té debajo…" onchange="saveCategoryField(${c.id}, { care_text: this.value })">${siteEsc(c.care_text || '')}</textarea></div>
+                <div class="form-group"><label class="form-label">Aviso (opcional)</label>
+                  <input class="form-control" value="${siteEsc(c.care_note || '')}" placeholder="Ej: No comestible." onchange="saveCategoryField(${c.id}, { care_note: this.value })" /></div>` : ''}
+                <div class="form-group"><label class="form-label">Frase bajo el botón (opcional)</label>
+                  <input class="form-control" value="${siteEsc(c.product_note || '')}" placeholder="Vacío = la general. Escribe un guion (-) para no mostrar ninguna" onchange="saveCategoryField(${c.id}, { product_note: this.value })" /></div>
+              </details>
             </div>
           </div>
         </div>`).join('')}
@@ -504,11 +525,11 @@ async function renderCategoriesEditor() {
   `);
 }
 
-async function saveCategoryField(id, patch) {
+async function saveCategoryField(id, patch, rerender = false) {
   try {
     await API.updateCategory(id, patch);
     toast('Guardado ✓', 'success');
-    if ('image' in patch || 'name' in patch) await renderCategoriesEditor();
+    if (rerender || 'image' in patch || 'name' in patch) await renderCategoriesEditor();
   } catch (err) { toast(err.message, 'error'); }
 }
 

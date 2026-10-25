@@ -1111,3 +1111,5 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .pm-chip input:checked + span { background: #62121D; border-color: #62121D; color: #F0EEE9; }
 .pm-chip input:focus-visible + span { outline: 2px solid #62121D; outline-offset: 2px; }
 .pm-format-row { display: grid; grid-template-columns: 1fr 120px 96px auto; gap: 8px; margin-bottom: 8px; }
+.site-cat-care { margin-top: 12px; border-top: 1px dashed var(--border); padding-top: 10px; }
+.site-cat-care summary { cursor: pointer; font-weight: 700; font-size: 13px; margin-bottom: 10px; }

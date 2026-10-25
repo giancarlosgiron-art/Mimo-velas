@@ -103,6 +103,11 @@ async function initSchema() {
     ALTER TABLE categories ADD COLUMN IF NOT EXISTS image TEXT;
     ALTER TABLE categories ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0;
     ALTER TABLE categories ADD COLUMN IF NOT EXISTS show_home INTEGER DEFAULT 1;
+    ALTER TABLE categories ADD COLUMN IF NOT EXISTS care_mode TEXT DEFAULT 'general';
+    ALTER TABLE categories ADD COLUMN IF NOT EXISTS care_title TEXT DEFAULT '';
+    ALTER TABLE categories ADD COLUMN IF NOT EXISTS care_text TEXT DEFAULT '';
+    ALTER TABLE categories ADD COLUMN IF NOT EXISTS care_note TEXT DEFAULT '';
+    ALTER TABLE categories ADD COLUMN IF NOT EXISTS product_note TEXT DEFAULT '';
     CREATE TABLE IF NOT EXISTS toppings (
       id SERIAL PRIMARY KEY, name TEXT NOT NULL, image TEXT, price INTEGER DEFAULT 0,
       active INTEGER DEFAULT 1, position INTEGER DEFAULT 0,

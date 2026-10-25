@@ -88,6 +88,7 @@ const DEFAULTS = {
     card_title: 'Para que dure más',
     card_text: 'Corta la mecha a 5 mm antes de cada uso y no la dejes encendida sin supervisión. Mantenla lejos de niños y mascotas.',
     card_note: 'Vela decorativa. No comestible.',
+    product_note: 'El diseño enamora, el aroma lo eliges tú. Pedidos personalizados por encargo.',
   },
   banners: {
     // Banners de ocasiones especiales: arriba del inicio, solo los activos. Este de ejemplo viene apagado.

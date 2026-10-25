@@ -82,14 +82,19 @@ router.put('/categories/:id', authMiddleware, async (req, res) => {
     const { rows } = await pool.query('SELECT * FROM categories WHERE id=$1',[req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Categoria no encontrada' });
     const c = rows[0];
-    const { name, icon, color, description, image, position, show_home } = req.body;
-    await pool.query('UPDATE categories SET name=$1,icon=$2,color=$3,description=$4,image=$5,position=$6,show_home=$7 WHERE id=$8',[
+    const { name, icon, color, description, image, position, show_home, care_mode, care_title, care_text, care_note, product_note } = req.body;
+    const txt = (v, old, max) => v !== undefined ? String(v || '').trim().slice(0, max) : (old || '');
+    await pool.query('UPDATE categories SET name=$1,icon=$2,color=$3,description=$4,image=$5,position=$6,show_home=$7,care_mode=$9,care_title=$10,care_text=$11,care_note=$12,product_note=$13 WHERE id=$8',[
       (name||'').trim()||c.name, icon||c.icon, color||c.color,
       description!==undefined ? String(description).trim().slice(0,600) : c.description,
       image!==undefined ? (image||null) : c.image,
       position!==undefined ? parseInt(position)||0 : c.position,
       show_home!==undefined ? (show_home ? 1 : 0) : c.show_home,
-      req.params.id]);
+      req.params.id,
+      // Tarjeta de cuidado en la ficha: 'general' (la de Mi página → Cuidado), 'custom' (propia) o 'hidden'
+      ['general', 'custom', 'hidden'].includes(care_mode) ? care_mode : (c.care_mode || 'general'),
+      txt(care_title, c.care_title, 80), txt(care_text, c.care_text, 600), txt(care_note, c.care_note, 160),
+      txt(product_note, c.product_note, 300)]);
     res.json({ message: 'Categoria actualizada' });
   } catch (err) { const msg = err.message.includes('products_sku_key') ? 'El SKU ingresado ya existe. Por favor usa un SKU diferente.' : err.message; res.status(500).json({ error: msg }); }
 });
@@ -123,7 +128,7 @@ router.get('/:id/image', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const { rows } = await pool.query(`SELECT p.*,c.name as category_name,s.name as supplier_name FROM products p LEFT JOIN categories c ON p.category_id=c.id LEFT JOIN suppliers s ON p.supplier_id=s.id WHERE p.id=$1`,[req.params.id]);
+    const { rows } = await pool.query(`SELECT p.*,c.name as category_name,c.care_mode as category_care_mode,c.care_title as category_care_title,c.care_text as category_care_text,c.care_note as category_care_note,c.product_note as category_product_note,s.name as supplier_name FROM products p LEFT JOIN categories c ON p.category_id=c.id LEFT JOIN suppliers s ON p.supplier_id=s.id WHERE p.id=$1`,[req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Producto no encontrado' });
     const { rows: v } = await pool.query('SELECT * FROM product_variants WHERE product_id=$1',[rows[0].id]);
     const { rows: m } = await pool.query('SELECT * FROM stock_movements WHERE product_id=$1 ORDER BY created_at DESC LIMIT 10',[rows[0].id]);
