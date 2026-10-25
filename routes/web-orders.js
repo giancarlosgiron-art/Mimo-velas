@@ -26,7 +26,7 @@ router.post('/', async (req, res) => {
 
     const ids = items.map(i => parseInt(i.id)).filter(id => id > 0);
     const { rows: products } = ids.length
-      ? await pool.query('SELECT id, name, sale_price FROM products WHERE id = ANY($1)', [ids])
+      ? await pool.query('SELECT id, name, sale_price, formats FROM products WHERE id = ANY($1)', [ids])
       : { rows: [] };
 
     const lines = [];
@@ -35,7 +35,10 @@ router.post('/', async (req, res) => {
       const id = parseInt(it.id);
       const product = products.find(p => p.id === id);
       // Velas del inventario: precio del sistema. "Arma tu vela" (id -1): precio calculado en la página, acotado.
-      const price = product ? Number(product.sale_price) : Math.min(500000, Math.max(0, parseInt(it.price) || 0));
+      // Si tiene formatos (ej. 4 o 6 figuras), vale el precio del formato elegido
+      const format = product && Array.isArray(product.formats) ? product.formats.find(f => f.name === it.format) : null;
+      const price = format ? Number(format.price)
+        : product ? Number(product.sale_price) : Math.min(500000, Math.max(0, parseInt(it.price) || 0));
       const name = product ? product.name : clip(it.name, 120) || 'Vela';
       const notes = [it.aroma ? `Aroma: ${clip(it.aroma, 60)}` : 'Aroma a elección', clip(it.details, 300)].filter(Boolean).join(' · ');
       lines.push({ product_id: product ? product.id : null, name, qty, price, notes });

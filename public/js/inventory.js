@@ -204,6 +204,26 @@ function renderAllowedAromas(aromas, selected) {
 function readAllowedAromas() {
   return [...document.querySelectorAll('#pm-allowed-aromas input:checked')].map(i => i.value);
 }
+function renderProductFormats(list) {
+  document.getElementById('pm-formats').innerHTML = list.map(f => productFormatRow(f.name, f.price)).join('');
+}
+function productFormatRow(name = '', price = '') {
+  return `<div class="pm-format-row">
+    <input class="form-control" placeholder="Ej: 4 figuras" maxlength="60" value="${escapeHtml(name)}" />
+    <input class="form-control" type="number" min="0" step="10" placeholder="Precio CLP" value="${escapeHtml(price)}" />
+    <button type="button" class="btn btn-ghost btn-sm btn-icon" title="Quitar" onclick="this.parentElement.remove()">🗑️</button>
+  </div>`;
+}
+function addProductFormat() {
+  document.getElementById('pm-formats').insertAdjacentHTML('beforeend', productFormatRow());
+  document.querySelector('#pm-formats .pm-format-row:last-child input').focus();
+}
+function readProductFormats() {
+  return [...document.querySelectorAll('#pm-formats .pm-format-row')].map(r => {
+    const [n, p] = r.querySelectorAll('input');
+    return { name: n.value.trim(), price: parseInt(p.value) || 0 };
+  }).filter(f => f.name);
+}
 function readProductOptions() {
   return document.getElementById('pm-options').value.split('\n').map(s => s.trim()).filter(Boolean);
 }
@@ -225,6 +245,7 @@ async function openProductModal(id = null) {
   document.getElementById('pm-options-label').value = '';
   document.getElementById('pm-options').value = '';
   renderAllowedAromas(aromas, []);
+  renderProductFormats([]);
 
   // Reset image field
   document.getElementById('pm-image').value = '';
@@ -241,6 +262,7 @@ async function openProductModal(id = null) {
     document.getElementById('pm-options-label').value = p.options_label || '';
     document.getElementById('pm-options').value = (p.options || []).join('\n');
     renderAllowedAromas(aromas, p.allowed_aromas || []);
+    renderProductFormats(p.formats || []);
     document.getElementById('pm-cost').value = p.cost_price;
     document.getElementById('pm-price').value = p.sale_price;
     document.getElementById('pm-price-eur').value = p.price_eur || '';
@@ -368,6 +390,7 @@ async function saveProduct() {
     data.append('options_label', document.getElementById('pm-options-label').value.trim());
     data.append('options', JSON.stringify(readProductOptions()));
     data.append('allowed_aromas', JSON.stringify(readAllowedAromas()));
+    data.append('formats', JSON.stringify(readProductFormats()));
     data.append('category_id', document.getElementById('pm-category').value || '');
     data.append('cost_price', document.getElementById('pm-cost').value || 0);
     data.append('sale_price', document.getElementById('pm-price').value || 0);
@@ -386,6 +409,7 @@ async function saveProduct() {
       options_label: document.getElementById('pm-options-label').value.trim(),
       options: readProductOptions(),
       allowed_aromas: readAllowedAromas(),
+      formats: readProductFormats(),
       category_id: document.getElementById('pm-category').value || null,
       cost_price: document.getElementById('pm-cost').value || 0,
       sale_price: document.getElementById('pm-price').value || 0,

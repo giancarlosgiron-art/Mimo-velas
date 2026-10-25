@@ -24,6 +24,15 @@ function parseList(v) {
   return arr.map(x => String(x || '').trim().slice(0, 80)).filter(x => x && !seen.has(x.toLowerCase()) && seen.add(x.toLowerCase())).slice(0, 40);
 }
 // En una edición, un número que no llega se mantiene (parseFloat(undefined) daría NaN → precio vacío)
+// Formatos con precio propio, ej. [{ name: '4 figuras', price: 10990 }, { name: '6 figuras', price: 13990 }]
+function parseFormats(v) {
+  if (v === undefined) return undefined;
+  let arr = v;
+  if (typeof v === 'string') { try { arr = JSON.parse(v); } catch { return []; } }
+  if (!Array.isArray(arr)) return [];
+  return arr.map(f => ({ name: String(f?.name || '').trim().slice(0, 60), price: Math.max(0, Math.round(parseFloat(f?.price) || 0)) }))
+    .filter(f => f.name).slice(0, 10);
+}
 function numOr(v, fallback) { const n = parseFloat(v); return Number.isFinite(n) ? n : (v === undefined ? fallback : 0); }
 function publicView(p) { const o = { ...p }; PRIVATE_FIELDS.forEach(f => delete o[f]); return o; }
 
@@ -120,7 +129,7 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
   try {
-    const { name, description, category_id, supplier_id, cost_price, sale_price, price_eur, compare_price, compare_price_eur, stock, min_stock, country, aroma, options_label, options, allowed_aromas } = req.body;
+    const { name, description, category_id, supplier_id, cost_price, sale_price, price_eur, compare_price, compare_price_eur, stock, min_stock, country, aroma, options_label, options, allowed_aromas, formats } = req.body;
     if (!name) return res.status(400).json({ error: 'Nombre requerido' });
     const { rows: ls } = await pool.query("SELECT sku FROM products WHERE sku ~ '^MIMO-[0-9]+$'");
     const nums = ls.map(r => { const m=r.sku.match(/MIMO-(\d+)/); return m?parseInt(m[1]):0; });
@@ -128,8 +137,8 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
     const sku='MIMO-'+String(n).padStart(3,'0');
     const si=parseInt(stock)||0, mi=parseInt(min_stock)||5;
     const st=si===0?'out_of_stock':si<=mi?'low_stock':'available';
-    const { rows } = await pool.query(`INSERT INTO products (sku,name,description,category_id,supplier_id,cost_price,sale_price,price_eur,compare_price,compare_price_eur,stock,min_stock,status,image,country,aroma,options_label,options,allowed_aromas) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING id`,
-      [sku,name,description||'',category_id||null,supplier_id||null,parseFloat(cost_price)||0,parseFloat(sale_price)||0,parseFloat(price_eur)||0,parseFloat(compare_price)||0,parseFloat(compare_price_eur)||0,si,mi,st,null,country||'chile',(aroma||'').trim()||null,(options_label||'').trim().slice(0,40)||null,parseList(options)||[],parseList(allowed_aromas)||[]]);
+    const { rows } = await pool.query(`INSERT INTO products (sku,name,description,category_id,supplier_id,cost_price,sale_price,price_eur,compare_price,compare_price_eur,stock,min_stock,status,image,country,aroma,options_label,options,allowed_aromas,formats) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING id`,
+      [sku,name,description||'',category_id||null,supplier_id||null,parseFloat(cost_price)||0,parseFloat(sale_price)||0,parseFloat(price_eur)||0,parseFloat(compare_price)||0,parseFloat(compare_price_eur)||0,si,mi,st,null,country||'chile',(aroma||'').trim()||null,(options_label||'').trim().slice(0,40)||null,parseList(options)||[],parseList(allowed_aromas)||[],JSON.stringify(parseFormats(formats)||[])]);
     const pid=rows[0].id;
     if (req.file) await pool.query('UPDATE products SET image=$1 WHERE id=$2',[await saveProductImage(pid, req.file), pid]);
     if (si>0) await pool.query('INSERT INTO stock_movements (product_id,type,quantity,notes) VALUES ($1,$2,$3,$4)',[pid,'purchase',si,'Stock inicial']);
@@ -142,12 +151,12 @@ router.put('/:id', authMiddleware, upload.single('image'), async (req, res) => {
     const { rows } = await pool.query('SELECT * FROM products WHERE id=$1',[req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Producto no encontrado' });
     const p=rows[0];
-    const { name, description, category_id, supplier_id, cost_price, sale_price, price_eur, compare_price, compare_price_eur, stock, min_stock, country, aroma, options_label, options, allowed_aromas, sku: skuInput } = req.body;
+    const { name, description, category_id, supplier_id, cost_price, sale_price, price_eur, compare_price, compare_price_eur, stock, min_stock, country, aroma, options_label, options, allowed_aromas, formats, sku: skuInput } = req.body;
     const ns=stock!==undefined?parseInt(stock):p.stock, nm=min_stock!==undefined?parseInt(min_stock):p.min_stock;
     const st=ns===0?'out_of_stock':ns<=nm?'low_stock':'available';
     const img=req.file ? await saveProductImage(p.id, req.file) : p.image;
-    await pool.query(`UPDATE products SET name=$1,description=$2,category_id=$3,supplier_id=$4,cost_price=$5,sale_price=$6,price_eur=$7,compare_price=$8,compare_price_eur=$9,stock=$10,min_stock=$11,status=$12,image=$13,country=$14,sku=$16,aroma=$17,options_label=$18,options=$19,allowed_aromas=$20 WHERE id=$15`,
-      [name||p.name,description??p.description,category_id??p.category_id,supplier_id??p.supplier_id,numOr(cost_price,p.cost_price),numOr(sale_price,p.sale_price),numOr(price_eur,p.price_eur),numOr(compare_price,p.compare_price),numOr(compare_price_eur,p.compare_price_eur),ns,nm,st,img,country||p.country,req.params.id,skuInput!==undefined&&skuInput!==''?skuInput:p.sku,aroma!==undefined?((aroma||'').trim()||null):p.aroma,options_label!==undefined?((options_label||'').trim().slice(0,40)||null):p.options_label,parseList(options)??p.options,parseList(allowed_aromas)??p.allowed_aromas]);
+    await pool.query(`UPDATE products SET name=$1,description=$2,category_id=$3,supplier_id=$4,cost_price=$5,sale_price=$6,price_eur=$7,compare_price=$8,compare_price_eur=$9,stock=$10,min_stock=$11,status=$12,image=$13,country=$14,sku=$16,aroma=$17,options_label=$18,options=$19,allowed_aromas=$20,formats=$21 WHERE id=$15`,
+      [name||p.name,description??p.description,category_id??p.category_id,supplier_id??p.supplier_id,numOr(cost_price,p.cost_price),numOr(sale_price,p.sale_price),numOr(price_eur,p.price_eur),numOr(compare_price,p.compare_price),numOr(compare_price_eur,p.compare_price_eur),ns,nm,st,img,country||p.country,req.params.id,skuInput!==undefined&&skuInput!==''?skuInput:p.sku,aroma!==undefined?((aroma||'').trim()||null):p.aroma,options_label!==undefined?((options_label||'').trim().slice(0,40)||null):p.options_label,parseList(options)??p.options,parseList(allowed_aromas)??p.allowed_aromas,JSON.stringify(parseFormats(formats)??p.formats??[])]);
     if (stock!==undefined&&parseInt(stock)!==p.stock) {
       const diff=parseInt(stock)-p.stock;
       await pool.query('INSERT INTO stock_movements (product_id,type,quantity,notes) VALUES ($1,$2,$3,$4)',[p.id,diff>0?'adjustment_in':'adjustment_out',Math.abs(diff),'Ajuste manual']);
