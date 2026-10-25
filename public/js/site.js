@@ -64,10 +64,13 @@ const SITE_SECTIONS = [
     { name: 'text',       type: 'textarea', label: 'Descripción', rows: 3 },
     { name: 'cta_label',  type: 'text',     label: 'Botón principal' },
     { name: 'link_label', type: 'text',     label: 'Enlace secundario' },
+    { name: 'product_ids', type: 'products', label: 'Productos que rotan en la foto', hint: 'Elige y ordena productos del catálogo. Rotan junto con las fotos propias de abajo. Si no hay ninguno, rotan los más vendidos.' },
+    { name: 'sticker_label', type: 'text', label: 'Texto pequeño de la etiqueta flotante', hint: 'Vacío = la categoría de cada producto (ej. "Wax Melt", "Postres"). O escribe uno fijo, ej. "Hecho a mano".' },
     { name: 'slides', type: 'group', label: 'Fotos de la portada', addLabel: '+ Agregar foto', itemLabel: 'Foto', subfields: [
       { name: 'image', type: 'image', label: 'Foto', hint: 'Vertical (4:5), idealmente 1000 × 1250 px. Si no subes ninguna, rotan las velas más vendidas.' },
+      { name: 'eyebrow', type: 'text', label: 'Etiqueta · texto pequeño de arriba', hint: 'Ej: Vela de soja (opcional)' },
       { name: 'title', type: 'text', label: 'Etiqueta · título', hint: 'Ej: Mandarín Martini' },
-      { name: 'subtitle', type: 'text', label: 'Etiqueta · texto pequeño', hint: 'Ej: Aroma a mandarina' },
+      { name: 'subtitle', type: 'text', label: 'Etiqueta · texto de abajo', hint: 'Ej: Aroma a mandarina' },
       { name: 'link', type: 'text', label: 'Al tocar la etiqueta lleva a', hint: 'Ej: /producto/12 o /catalogo?coleccion=bebidas (opcional)' },
     ]},
   ]},
@@ -163,7 +166,7 @@ function selectSiteSection(key, force = false) {
   SiteEditor.current = key;
   if (key === 'categorias') { SiteEditor.dirty = false; return renderCategoriesEditor(); }
   if (key === 'arma_tu_vela') { SiteEditor.draft = JSON.parse(JSON.stringify(SiteEditor.data.arma_tu_vela)); SiteEditor.dirty = false; return renderBuilderEditor(); }
-  if (key === 'banners' && !SiteEditor.products) {
+  if ((key === 'banners' || key === 'portada') && !SiteEditor.products) {
     // El selector de velas de cada banner necesita la lista de productos
     return API.request('GET', '/products?admin=1').then(list => { SiteEditor.products = list; selectSiteSection(key, true); })
       .catch(err => toast(err.message, 'error'));
@@ -275,7 +278,7 @@ function renderSiteField(f, value, path) {
         }).join('') : '<p class="site-hint">Sin velas elegidas.</p>'}</div>
         <div class="site-list-row" style="margin-top:8px">
           <select class="form-control" id="${selId}">
-            <option value="">Elige una vela para agregar…</option>
+            <option value="">Elige un producto para agregar…</option>
             ${all.filter(p => !chosen.includes(String(p.id))).map(p => `<option value="${p.id}">${siteEsc(p.name)}</option>`).join('')}
           </select>
           <button type="button" class="btn btn-secondary btn-sm" onclick="addSiteProduct('${path}', '${selId}')">+ Agregar</button>

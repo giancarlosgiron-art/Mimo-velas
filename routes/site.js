@@ -41,8 +41,10 @@ const DEFAULTS = {
     text: 'Velas de soja hechas a mano, en tandas chicas. Algunas parecen postres o tragos, otras son simples y elegantes. Tú eliges el diseño y el aroma.',
     cta_label: 'Ver las velas',
     link_label: 'Cómo pedir',
-    // Fotos propias de la portada (rotan). Vacío = rotan las velas más vendidas/nuevas.
+    // Lo que rota en la burbuja: fotos propias + velas elegidas. Si no hay nada, las más vendidas/nuevas.
     slides: [],
+    product_ids: [],
+    sticker_label: '',      // texto chico de la etiqueta flotante. Vacío = la categoría de cada vela
   },
   catalogo: {
     home_eyebrow: 'El catálogo',
@@ -130,7 +132,7 @@ const DEFAULTS = {
 
 // Forma de cada elemento en las listas que por defecto vienen vacías
 const ITEM_MODELS = {
-  'portada.slides': { image: '', title: '', subtitle: '', link: '' },
+  'portada.slides': { image: '', eyebrow: '', title: '', subtitle: '', link: '' },
 };
 
 // Limpia lo que llega usando el valor por defecto como "molde":
