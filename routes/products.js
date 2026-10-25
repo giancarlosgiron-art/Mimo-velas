@@ -30,7 +30,12 @@ function parseFormats(v) {
   let arr = v;
   if (typeof v === 'string') { try { arr = JSON.parse(v); } catch { return []; } }
   if (!Array.isArray(arr)) return [];
-  return arr.map(f => ({ name: String(f?.name || '').trim().slice(0, 60), price: Math.max(0, Math.round(parseFloat(f?.price) || 0)) }))
+  return arr.map(f => {
+    const name = String(f?.name || '').trim().slice(0, 60);
+    // Cuántas figuras elige el cliente en este formato (si no viene, el número del nombre: "6 figuras" → 6)
+    const count = Math.min(24, Math.max(0, parseInt(f?.count) || parseInt((name.match(/\d+/) || [])[0]) || 0));
+    return { name, price: Math.max(0, Math.round(parseFloat(f?.price) || 0)), count };
+  })
     .filter(f => f.name).slice(0, 10);
 }
 function numOr(v, fallback) { const n = parseFloat(v); return Number.isFinite(n) ? n : (v === undefined ? fallback : 0); }

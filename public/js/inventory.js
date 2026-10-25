@@ -205,12 +205,13 @@ function readAllowedAromas() {
   return [...document.querySelectorAll('#pm-allowed-aromas input:checked')].map(i => i.value);
 }
 function renderProductFormats(list) {
-  document.getElementById('pm-formats').innerHTML = list.map(f => productFormatRow(f.name, f.price)).join('');
+  document.getElementById('pm-formats').innerHTML = list.map(f => productFormatRow(f.name, f.price, f.count)).join('');
 }
-function productFormatRow(name = '', price = '') {
+function productFormatRow(name = '', price = '', count = '') {
   return `<div class="pm-format-row">
     <input class="form-control" placeholder="Ej: 4 figuras" maxlength="60" value="${escapeHtml(name)}" />
     <input class="form-control" type="number" min="0" step="10" placeholder="Precio CLP" value="${escapeHtml(price)}" />
+    <input class="form-control" type="number" min="0" max="24" placeholder="N° figuras" title="Cuántas figuras elige el cliente" value="${escapeHtml(count || '')}" />
     <button type="button" class="btn btn-ghost btn-sm btn-icon" title="Quitar" onclick="this.parentElement.remove()">🗑️</button>
   </div>`;
 }
@@ -220,8 +221,8 @@ function addProductFormat() {
 }
 function readProductFormats() {
   return [...document.querySelectorAll('#pm-formats .pm-format-row')].map(r => {
-    const [n, p] = r.querySelectorAll('input');
-    return { name: n.value.trim(), price: parseInt(p.value) || 0 };
+    const [n, p, c] = r.querySelectorAll('input');
+    return { name: n.value.trim(), price: parseInt(p.value) || 0, count: parseInt(c.value) || 0 };
   }).filter(f => f.name);
 }
 function readProductOptions() {

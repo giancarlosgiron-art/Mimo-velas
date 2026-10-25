@@ -1110,4 +1110,4 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .pm-chip span { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); font-size: 13px; font-weight: 600; transition: all .15s; }
 .pm-chip input:checked + span { background: #62121D; border-color: #62121D; color: #F0EEE9; }
 .pm-chip input:focus-visible + span { outline: 2px solid #62121D; outline-offset: 2px; }
-.pm-format-row { display: grid; grid-template-columns: 1fr 140px auto; gap: 8px; margin-bottom: 8px; }
+.pm-format-row { display: grid; grid-template-columns: 1fr 120px 96px auto; gap: 8px; margin-bottom: 8px; }
