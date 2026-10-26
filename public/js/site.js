@@ -88,13 +88,13 @@ const SITE_SECTIONS = [
       { name: 'text', type: 'textarea', label: 'Frase', rows: 2 },
     ]},
   ]},
-  { key: 'tu_gusto', title: 'Tu vela, a tu gusto', icon: '🌸', desc: 'La sección de aromas (la lista de aromas se edita en Inventario → Aromas).', fields: [
-    { name: 'title',      type: 'textarea', label: 'Título', rows: 2 },
-    { name: 'text',       type: 'textarea', label: 'Descripción', rows: 2 },
-    { name: 'list_title', type: 'text',     label: 'Título de la lista' },
-    { name: 'band_title', type: 'textarea', label: 'Franja de color · título', rows: 2 },
+  { key: 'tu_gusto', title: 'Tu vela, a tu gusto', icon: '🌸', desc: 'La sección para pedidos personalizados y eventos, con botón a WhatsApp.', fields: [
+    { name: 'title',         type: 'textarea', label: 'Título', rows: 2 },
+    { name: 'message',       type: 'textarea', label: 'Mensaje', rows: 3 },
+    { name: 'button_label',  type: 'text',     label: 'Botón de WhatsApp' },
+    { name: 'whatsapp_text', type: 'text',     label: 'Mensaje que se escribe solo en WhatsApp', hint: 'Lo que le aparece al cliente al abrir el chat' },
+    { name: 'band_title', type: 'textarea', label: 'Franja de color · título', rows: 2, hint: 'Vacío = no se muestra la franja' },
     { name: 'band_text',  type: 'text',     label: 'Franja de color · texto' },
-    { name: 'cta_label',  type: 'text',     label: 'Botón de la franja' },
   ]},
   { key: 'como_pedir', title: 'Cómo pedir', icon: '🛍️', desc: 'Los pasos numerados para hacer un pedido.', fields: [
     { name: 'eyebrow', type: 'text', label: 'Texto pequeño' },

@@ -69,6 +69,10 @@ const DEFAULTS = {
     band_title: 'El diseño enamora.\nEl aroma lo eliges tú.',
     band_text: 'Pedidos personalizados por encargo.',
     cta_label: 'Encargar por WhatsApp',
+    // Reemplaza la lista de aromas: invitación a pedir algo personalizado
+    message: '¿Quieres una vela personalizada o tienes un evento y buscas un detalle especial? Escríbenos por WhatsApp y lo creamos para ti.',
+    button_label: 'Escríbenos por WhatsApp',
+    whatsapp_text: '¡Hola mimo! Quiero una vela personalizada 🕯️',
   },
   como_pedir: {
     eyebrow: 'Cómo pedir',
