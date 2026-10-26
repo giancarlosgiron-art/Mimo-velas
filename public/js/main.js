@@ -232,9 +232,9 @@ async function loadNotifications() {
 
     // Update badges
     const lowStockCount = notifications.filter(n => n.type === 'warning' && n.link === '/inventory').length;
-    const ordersCount = notifications.filter(n => n.link === '/orders' && !n.is_read).length;
     updateBadge('badge-stock', lowStockCount);
-    updateBadge('badge-orders', ordersCount);
+    // Pedidos: cuántos están pendientes por revisar (igual que la tarjeta "Pendientes")
+    API.orders({ status: 'pending' }).then(list => updateBadge('badge-orders', list.length)).catch(() => {});
 
     const list = document.getElementById('notif-list');
     if (!notifications.length) {
