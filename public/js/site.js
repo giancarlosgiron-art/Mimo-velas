@@ -64,6 +64,7 @@ const SITE_SECTIONS = [
     { name: 'text',       type: 'textarea', label: 'Descripción', rows: 3 },
     { name: 'cta_label',  type: 'text',     label: 'Botón principal' },
     { name: 'link_label', type: 'text',     label: 'Enlace secundario' },
+    { name: 'verde', type: 'toggle', label: 'Fondo verde de la marca', hint: 'Apagado = borgoña. Mismo degradado y efecto de vidrio, solo cambia el color.' },
     { name: 'vitrina', type: 'toggle', label: 'Estilo "Vitrina": velas sin fondo sobre una ola de cera', hint: 'Usa los productos elegidos abajo que tengan "Foto sin fondo" (Inventario → editar producto). Apagado = la burbuja de siempre.' },
     { name: 'product_ids', type: 'products', label: 'Productos que rotan en la foto', hint: 'Elige y ordena productos del catálogo. Rotan junto con las fotos propias de abajo. Si no hay ninguno, rotan los más vendidos.' },
     { name: 'sticker_label', type: 'text', label: 'Texto pequeño de la etiqueta flotante', hint: 'Vacío = la categoría de cada producto (ej. "Wax Melt", "Postres"). O escribe uno fijo, ej. "Hecho a mano".' },

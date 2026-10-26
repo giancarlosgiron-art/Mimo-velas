@@ -45,6 +45,7 @@ const DEFAULTS = {
     slides: [],
     product_ids: [],
     sticker_label: '',      // texto chico de la etiqueta flotante. Vacío = la categoría de cada vela
+    verde: false,           // fondo con el verde de la marca en vez del borgoña
     vitrina: false,         // estilo "Vitrina": velas sin fondo sobre una ola de cera (en vez de la burbuja)
   },
   catalogo: {
