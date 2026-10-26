@@ -135,8 +135,13 @@ async function openOrderDetail(id) {
     document.getElementById('od-body').innerHTML = `
       <div class="grid-2 mb-4">
         <div><div class="stat-label">Cliente</div><div style="font-weight:600;margin-top:4px">${escOrder(o.customer_name || o.contact_name || '—')}</div>
-          ${o.customer_phone ? `<div style="font-size:0.78rem;color:var(--text-muted)">📱 ${o.customer_phone}</div>` : ''}
-          ${o.customer_ig ? `<div style="font-size:0.78rem;color:var(--text-muted)">📸 ${o.customer_ig}</div>` : ''}
+          ${o.customer_phone ? `<div style="font-size:0.78rem;color:var(--text-muted)">📱 ${escOrder(o.customer_phone)}</div>` : ''}
+          ${o.customer_ig ? `<div style="font-size:0.78rem;color:var(--text-muted)">📸 ${escOrder(o.customer_ig)}</div>` : ''}
+          ${o.customer_id
+            ? `<button class="btn btn-ghost btn-sm" style="margin-top:6px;padding-left:0" onclick="closeModal('order-detail-modal');openCustomerDetail(${o.customer_id})">👤 Ver ficha del cliente</button>`
+            : `<div id="od-link-customer" style="margin-top:8px">
+                <button class="btn btn-secondary btn-sm" onclick="showOrderCustomerForm(${o.id}, ${escOrder(JSON.stringify(o.contact_name || ''))})">👤 Guardar como cliente</button>
+              </div>`}
         </div>
         <div><div class="stat-label">Estado</div><div style="margin-top:4px">${orderStatusBadge(o.status)}</div></div>
       </div>
@@ -185,6 +190,40 @@ async function openOrderDetail(id) {
   } catch (err) {
     toast(err.message, 'error');
   }
+}
+
+// ── Pedido web → cliente ─────────────────────────
+function showOrderCustomerForm(orderId, name) {
+  document.getElementById('od-link-customer').innerHTML = `
+    <div class="od-customer-form">
+      <input class="form-control" id="od-c-name" placeholder="Nombre" value="${escOrder(name)}" />
+      <input class="form-control" id="od-c-phone" placeholder="WhatsApp (opcional) · +56 9…" />
+      <small class="site-hint">Con el WhatsApp, si ya es cliente se vincula sola.</small>
+      <button class="btn btn-primary btn-sm" onclick="saveOrderAsCustomer(${orderId})">Guardar cliente</button>
+    </div>`;
+  document.getElementById('od-c-phone').focus();
+}
+
+async function saveOrderAsCustomer(orderId, extra = {}) {
+  const body = {
+    name: document.getElementById('od-c-name')?.value.trim(),
+    phone: document.getElementById('od-c-phone')?.value.trim(),
+    ...extra,
+  };
+  try {
+    const res = await fetch(`${API.base}/customers/from-order/${orderId}`, { method: 'POST', headers: API.headers(), body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 409 && data.candidate) {
+      // Ya hay un cliente con ese nombre: ¿es la misma persona?
+      const c = data.candidate;
+      const same = confirm(`Ya tienes un cliente llamado "${c.name}"${c.phone ? ` (${c.phone})` : ''}.\n\n¿Es la misma persona?\nAceptar = vincular a ese cliente · Cancelar = crear uno nuevo`);
+      return saveOrderAsCustomer(orderId, same ? { customer_id: c.id } : { force_new: true });
+    }
+    if (!res.ok) throw new Error(data.error || 'No se pudo guardar');
+    toast(data.created ? `Cliente "${data.customer.name}" registrado ✓` : `Pedido vinculado a "${data.customer.name}" ✓`, 'success');
+    await openOrderDetail(orderId);
+    await loadOrders();
+  } catch (err) { toast(err.message, 'error'); }
 }
 
 async function updateOrderStatus(id) {

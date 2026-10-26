@@ -310,7 +310,7 @@
                 <span class="search-icon">🔍</span>
                 <input type="text" placeholder="Buscar por nombre, teléfono, Instagram…" id="cust-search" oninput="filterCustomers()" />
               </div>
-              <button class="btn btn-secondary" id="vip-filter-btn" onclick="toggleVIPFilter()">⭐ Solo VIP</button>
+              <div class="cust-filters" id="cust-filters"></div>
             </div>
           </div>
         </div>
@@ -624,7 +624,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Teléfono / WhatsApp</label>
-          <input type="text" class="form-control" id="cm-phone" placeholder="+58 414-000-0000" />
+          <input type="text" class="form-control" id="cm-phone" placeholder="+56 9 1234 5678" />
         </div>
       </div>
       <div class="form-row">
@@ -651,7 +651,7 @@
       </div>
       <div class="form-group">
         <label class="form-label">Gustos / Preferencias</label>
-        <input type="text" class="form-control" id="cm-prefs" placeholder="Ej: le gustan los bolsos oscuros, talla M" />
+        <input type="text" class="form-control" id="cm-prefs" placeholder="Ej: le gustan los aromas dulces, regala velas a su mamá" />
       </div>
       <div class="form-group">
         <label class="form-label">Notas privadas</label>
