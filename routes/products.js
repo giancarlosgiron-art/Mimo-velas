@@ -53,18 +53,21 @@ router.get('/', async (req, res) => {
     if (status)   { q+=` AND p.status=$${++i}`;      params.push(status); }
     else if (!admin) { q+=` AND p.status != 'out_of_stock'`; }
     if (country)  { q+=` AND (LOWER(p.country)=LOWER($${++i}) OR p.country='both')`; params.push(country); }
+    // Categorías apagadas (Mi página → Categorías): sus productos no se ven en la página pública
+    const staff = isStaff(req);
+    if (!staff) q+=` AND (c.id IS NULL OR COALESCE(c.active,1)=1)`;
     const sc={name:'p.name',price:'p.sale_price',stock:'p.stock',created:'p.created_at'};
     q+=` ORDER BY ${sc[sort]||'p.name'} ${order==='DESC'?'DESC':'ASC'}`;
     const { rows } = await pool.query(q, params);
     rows.forEach(p=>{ p.margin=p.cost_price>0?(((p.sale_price-p.cost_price)/p.sale_price)*100).toFixed(1):0; p.profit=(p.sale_price-p.cost_price).toFixed(2); });
-    res.json(isStaff(req) ? rows : rows.map(publicView));
+    res.json(staff ? rows : rows.map(publicView));
   } catch (err) { const msg = err.message.includes('products_sku_key') ? 'El SKU ingresado ya existe. Por favor usa un SKU diferente.' : err.message; res.status(500).json({ error: msg }); }
 });
 
 router.get('/categories', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM categories ORDER BY position, id');
-    res.json(rows);
+    res.json(isStaff(req) ? rows : rows.filter(c => c.active !== 0));
   } catch (err) { const msg = err.message.includes('products_sku_key') ? 'El SKU ingresado ya existe. Por favor usa un SKU diferente.' : err.message; res.status(500).json({ error: msg }); }
 });
 
@@ -82,9 +85,9 @@ router.put('/categories/:id', authMiddleware, async (req, res) => {
     const { rows } = await pool.query('SELECT * FROM categories WHERE id=$1',[req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Categoria no encontrada' });
     const c = rows[0];
-    const { name, icon, color, description, image, position, show_home, care_mode, care_title, care_text, care_note, product_note } = req.body;
+    const { name, icon, color, description, image, position, show_home, active, care_mode, care_title, care_text, care_note, product_note } = req.body;
     const txt = (v, old, max) => v !== undefined ? String(v || '').trim().slice(0, max) : (old || '');
-    await pool.query('UPDATE categories SET name=$1,icon=$2,color=$3,description=$4,image=$5,position=$6,show_home=$7,care_mode=$9,care_title=$10,care_text=$11,care_note=$12,product_note=$13 WHERE id=$8',[
+    await pool.query('UPDATE categories SET name=$1,icon=$2,color=$3,description=$4,image=$5,position=$6,show_home=$7,care_mode=$9,care_title=$10,care_text=$11,care_note=$12,product_note=$13,active=$14 WHERE id=$8',[
       (name||'').trim()||c.name, icon||c.icon, color||c.color,
       description!==undefined ? String(description).trim().slice(0,600) : c.description,
       image!==undefined ? (image||null) : c.image,
@@ -94,7 +97,8 @@ router.put('/categories/:id', authMiddleware, async (req, res) => {
       // Tarjeta de cuidado en la ficha: 'general' (la de Mi página → Cuidado), 'custom' (propia) o 'hidden'
       ['general', 'custom', 'hidden'].includes(care_mode) ? care_mode : (c.care_mode || 'general'),
       txt(care_title, c.care_title, 80), txt(care_text, c.care_text, 600), txt(care_note, c.care_note, 160),
-      txt(product_note, c.product_note, 300)]);
+      txt(product_note, c.product_note, 300),
+      active!==undefined ? (active ? 1 : 0) : (c.active ?? 1)]);
     res.json({ message: 'Categoria actualizada' });
   } catch (err) { const msg = err.message.includes('products_sku_key') ? 'El SKU ingresado ya existe. Por favor usa un SKU diferente.' : err.message; res.status(500).json({ error: msg }); }
 });
@@ -111,7 +115,7 @@ router.get('/top', async (req, res) => {
   try {
     const { rows } = await pool.query(`SELECT p.id,p.name,p.image,p.sku,p.sale_price,c.name as category_name,SUM(si.quantity)::int as quantity
       FROM sale_items si JOIN products p ON p.id=si.product_id LEFT JOIN categories c ON p.category_id=c.id
-      WHERE p.status != 'out_of_stock' GROUP BY p.id,c.name ORDER BY quantity DESC LIMIT 8`);
+      WHERE p.status != 'out_of_stock' AND (c.id IS NULL OR COALESCE(c.active,1)=1) GROUP BY p.id,c.name ORDER BY quantity DESC LIMIT 8`);
     res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -128,8 +132,8 @@ router.get('/:id/image', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const { rows } = await pool.query(`SELECT p.*,c.name as category_name,c.care_mode as category_care_mode,c.care_title as category_care_title,c.care_text as category_care_text,c.care_note as category_care_note,c.product_note as category_product_note,s.name as supplier_name FROM products p LEFT JOIN categories c ON p.category_id=c.id LEFT JOIN suppliers s ON p.supplier_id=s.id WHERE p.id=$1`,[req.params.id]);
-    if (!rows[0]) return res.status(404).json({ error: 'Producto no encontrado' });
+    const { rows } = await pool.query(`SELECT p.*,c.name as category_name,c.care_mode as category_care_mode,c.care_title as category_care_title,c.care_text as category_care_text,c.care_note as category_care_note,c.product_note as category_product_note,c.active as category_active,s.name as supplier_name FROM products p LEFT JOIN categories c ON p.category_id=c.id LEFT JOIN suppliers s ON p.supplier_id=s.id WHERE p.id=$1`,[req.params.id]);
+    if (!rows[0] || (rows[0].category_active === 0 && !isStaff(req))) return res.status(404).json({ error: 'Producto no encontrado' });
     const { rows: v } = await pool.query('SELECT * FROM product_variants WHERE product_id=$1',[rows[0].id]);
     const { rows: m } = await pool.query('SELECT * FROM stock_movements WHERE product_id=$1 ORDER BY created_at DESC LIMIT 10',[rows[0].id]);
     rows[0].variants=v; rows[0].movements=m;

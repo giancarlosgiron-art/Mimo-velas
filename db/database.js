@@ -105,6 +105,7 @@ async function initSchema() {
     ALTER TABLE categories ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0;
     ALTER TABLE categories ADD COLUMN IF NOT EXISTS show_home INTEGER DEFAULT 1;
     ALTER TABLE categories ADD COLUMN IF NOT EXISTS care_mode TEXT DEFAULT 'general';
+    ALTER TABLE categories ADD COLUMN IF NOT EXISTS active INTEGER DEFAULT 1;
     ALTER TABLE categories ADD COLUMN IF NOT EXISTS care_title TEXT DEFAULT '';
     ALTER TABLE categories ADD COLUMN IF NOT EXISTS care_text TEXT DEFAULT '';
     ALTER TABLE categories ADD COLUMN IF NOT EXISTS care_note TEXT DEFAULT '';

@@ -467,7 +467,7 @@ async function renderCategoriesEditor() {
       ${cats.map((c, i) => `
         <div class="site-group-item site-cat">
           <div class="site-group-head">
-            <strong>${siteEsc(c.icon || '')} ${siteEsc(c.name)}</strong>
+            <strong>${siteEsc(c.icon || '')} ${siteEsc(c.name)}</strong>${c.active === 0 ? ' <span class="site-hidden-badge">Oculta</span>' : ''}
             <span class="site-move">
               <button type="button" class="btn btn-ghost btn-sm btn-icon" title="Subir" ${i === 0 ? 'disabled' : ''} onclick="moveCategory(${i}, -1)">↑</button>
               <button type="button" class="btn btn-ghost btn-sm btn-icon" title="Bajar" ${i === cats.length - 1 ? 'disabled' : ''} onclick="moveCategory(${i}, 1)">↓</button>
@@ -492,6 +492,10 @@ async function renderCategoriesEditor() {
                 <label class="form-label">Descripción (se ve en su banner)</label>
                 <textarea class="form-control" rows="2" placeholder="Ej: Todo lo que se come con cuchara." onchange="saveCategoryField(${c.id}, { description: this.value })">${siteEsc(c.description || '')}</textarea>
               </div>
+              <label class="site-toggle" style="margin-bottom:8px">
+                <input type="checkbox" ${c.active !== 0 ? 'checked' : ''} onchange="saveCategoryField(${c.id}, { active: this.checked }, true)" />
+                <span class="site-switch"></span><span><strong>Visible en la página</strong><br><small class="site-hint">Apagada: la categoría y sus productos no se ven en el catálogo (siguen en el panel).</small></span>
+              </label>
               <label class="site-toggle">
                 <input type="checkbox" ${c.show_home ? 'checked' : ''} onchange="saveCategoryField(${c.id}, { show_home: this.checked })" />
                 <span class="site-switch"></span><span><strong>Mostrar en "Compra por categoría" del inicio</strong></span>
