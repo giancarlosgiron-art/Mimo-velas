@@ -74,6 +74,7 @@ const DEFAULTS = {
     message: '¿Quieres una vela personalizada o tienes un evento y buscas un detalle especial? Escríbenos por WhatsApp y lo creamos para ti.',
     button_label: 'Escríbenos por WhatsApp',
     whatsapp_text: '¡Hola mimo! Quiero una vela personalizada 🕯️',
+    verde: false,           // franja y botón con el verde de la marca
   },
   como_pedir: {
     eyebrow: 'Cómo pedir',

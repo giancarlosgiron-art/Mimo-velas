@@ -94,6 +94,7 @@ const SITE_SECTIONS = [
     { name: 'message',       type: 'textarea', label: 'Mensaje', rows: 3 },
     { name: 'button_label',  type: 'text',     label: 'Botón de WhatsApp' },
     { name: 'whatsapp_text', type: 'text',     label: 'Mensaje que se escribe solo en WhatsApp', hint: 'Lo que le aparece al cliente al abrir el chat' },
+    { name: 'verde', type: 'toggle', label: 'Verde de la marca', hint: 'La franja de color y el botón en verde. Apagado = borgoña.' },
     { name: 'band_title', type: 'textarea', label: 'Franja de color · título', rows: 2, hint: 'Vacío = no se muestra la franja' },
     { name: 'band_text',  type: 'text',     label: 'Franja de color · texto' },
   ]},
