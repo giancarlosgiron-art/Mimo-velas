@@ -102,6 +102,7 @@ const API = {
   createOrder(data)     { return this.post('/orders', data); },
   updateOrder(id, data) { return this.put(`/orders/${id}`, data); },
   deleteOrder(id)       { return this.del(`/orders/${id}`); },
+  deleteOrders(ids)     { return this.post('/orders/bulk-delete', { ids }); },
 
   // Expenses
   expenses(params = {}) {

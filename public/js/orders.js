@@ -5,6 +5,10 @@ function escOrder(str) {
 
 // ── Orders Module ────────────────────────────────────────────
 let currentOrderFilter = '';
+// Modo "Seleccionar" para eliminar varios pedidos (ej. pruebas) de una vez
+let orderSelectMode = false;
+const selectedOrders = new Set();
+let lastOrders = [];
 
 async function loadOrders(status = currentOrderFilter) {
   currentOrderFilter = status;
@@ -18,6 +22,7 @@ async function loadOrders(status = currentOrderFilter) {
 
 function renderOrders(orders) {
   const el = document.getElementById('orders-content');
+  lastOrders = orders;
 
   if (!orders.length) {
     el.innerHTML = `
@@ -41,8 +46,47 @@ function renderOrders(orders) {
       <div class="stat-card info"><span class="stat-icon">💎</span><div class="stat-label">Abonos recibidos</div>
         <div class="stat-value">${fmt(orders.reduce((s, o) => s + (o.deposit || 0), 0))}</div></div>
     </div>
+    <div class="order-select-bar">
+      ${orderSelectMode ? `
+        <label class="order-select-all"><input type="checkbox" ${orders.length && orders.every(o => selectedOrders.has(o.id)) ? 'checked' : ''} onchange="toggleAllOrders(this.checked)" /> Todos</label>
+        <span class="order-select-count">${selectedOrders.size} seleccionado${selectedOrders.size === 1 ? '' : 's'}</span>
+        <button class="btn btn-danger btn-sm" ${selectedOrders.size ? '' : 'disabled'} onclick="deleteSelectedOrders()">🗑️ Eliminar seleccionados</button>
+        <button class="btn btn-ghost btn-sm" onclick="setOrderSelectMode(false)">Cancelar</button>
+      ` : `<button class="btn btn-secondary btn-sm" onclick="setOrderSelectMode(true)">☑️ Seleccionar varios</button>`}
+    </div>
     <div>${orders.map(o => orderItem(o)).join('')}</div>
   `;
+}
+
+function setOrderSelectMode(on) {
+  orderSelectMode = on;
+  selectedOrders.clear();
+  renderOrders(lastOrders);
+}
+
+function toggleOrderSelected(id, on) {
+  if (on) selectedOrders.add(id); else selectedOrders.delete(id);
+  renderOrders(lastOrders);
+}
+
+function toggleAllOrders(on) {
+  lastOrders.forEach(o => on ? selectedOrders.add(o.id) : selectedOrders.delete(o.id));
+  renderOrders(lastOrders);
+}
+
+async function deleteSelectedOrders() {
+  const ids = [...selectedOrders];
+  if (!ids.length) return;
+  const list = lastOrders.filter(o => selectedOrders.has(o.id)).map(o => `#${o.id} ${o.customer_name || o.contact_name || ''}`.trim());
+  if (!confirm(`¿Eliminar ${ids.length} pedido${ids.length === 1 ? '' : 's'}? No se puede deshacer.\n\n${list.slice(0, 15).join('\n')}${list.length > 15 ? '\n…' : ''}`)) return;
+  try {
+    const res = await API.deleteOrders(ids);
+    toast(res.message + ' ✓', 'success');
+    orderSelectMode = false;
+    selectedOrders.clear();
+    await loadOrders();
+    if (typeof loadNotifications === 'function') await loadNotifications();
+  } catch (err) { toast(err.message, 'error'); }
 }
 
 function orderItem(o) {
@@ -50,9 +94,10 @@ function orderItem(o) {
   const balance = (o.total || 0) - (o.deposit || 0);
 
   return `
-    <div class="order-item" onclick="openOrderDetail(${o.id})">
+    <div class="order-item ${orderSelectMode && selectedOrders.has(o.id) ? 'selected' : ''}" onclick="${orderSelectMode ? `toggleOrderSelected(${o.id}, ${!selectedOrders.has(o.id)})` : `openOrderDetail(${o.id})`}">
       <div class="order-header">
-        <div>
+        ${orderSelectMode ? `<input type="checkbox" class="order-check" ${selectedOrders.has(o.id) ? 'checked' : ''} onclick="event.stopPropagation()" onchange="toggleOrderSelected(${o.id}, this.checked)" />` : ''}
+        <div style="flex:1;min-width:0">
           <div class="order-id">Pedido #${o.id} — ${escOrder(o.customer_name || o.contact_name || 'Sin cliente')}</div>
           <div class="order-type">${typeLabels[o.type] || o.type}</div>
         </div>
@@ -245,6 +290,7 @@ async function confirmDeleteOrder(id) {
     toast('Pedido eliminado', 'info');
     closeModal('order-detail-modal');
     await loadOrders();
+    if (typeof loadNotifications === 'function') await loadNotifications();
   } catch (err) {
     toast(err.message, 'error');
   }

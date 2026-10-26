@@ -72,9 +72,34 @@ router.put('/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Elimina pedidos con todo lo suyo: productos del pedido y avisos de la campanita
+async function deleteOrders(ids) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM order_items WHERE order_id = ANY($1)', [ids]);
+    for (const id of ids) {
+      await client.query("DELETE FROM notifications WHERE link='/orders' AND title ~ ('#' || $1::text || '([^0-9]|$)')", [id]);
+    }
+    const { rowCount } = await client.query('DELETE FROM orders WHERE id = ANY($1)', [ids]);
+    await client.query('COMMIT');
+    return rowCount;
+  } catch (err) { await client.query('ROLLBACK'); throw err; }
+  finally { client.release(); }
+}
+
+router.post('/bulk-delete', async (req, res) => {
+  try {
+    const ids = (Array.isArray(req.body.ids) ? req.body.ids : []).map(n => parseInt(n)).filter(n => n > 0).slice(0, 500);
+    if (!ids.length) return res.status(400).json({ error: 'Elige al menos un pedido' });
+    const n = await deleteOrders(ids);
+    res.json({ message: `${n} pedido${n === 1 ? '' : 's'} eliminado${n === 1 ? '' : 's'}`, deleted: n });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.delete('/:id', async (req, res) => {
   try {
-    await pool.query('DELETE FROM orders WHERE id=$1',[req.params.id]);
+    await deleteOrders([parseInt(req.params.id)]);
     res.json({ message: 'Pedido eliminado' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

@@ -92,6 +92,7 @@ async function initSchema() {
     ALTER TABLE products ADD COLUMN IF NOT EXISTS formats JSONB DEFAULT '[]';
     ALTER TABLE products ADD COLUMN IF NOT EXISTS pick_mode TEXT DEFAULT 'aromas';
     ALTER TABLE products ADD COLUMN IF NOT EXISTS cutout TEXT;
+    DELETE FROM order_items WHERE order_id NOT IN (SELECT id FROM orders);
     CREATE TABLE IF NOT EXISTS site_content (
       key TEXT PRIMARY KEY, data JSONB NOT NULL, updated_by TEXT,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

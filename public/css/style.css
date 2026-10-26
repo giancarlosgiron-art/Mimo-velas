@@ -1136,3 +1136,10 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .customer-prefs { font-size: 12px; color: var(--text-muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cust-wa { text-decoration: none; }
 .od-customer-form { display: grid; gap: 6px; max-width: 280px; }
+
+/* Pedidos: seleccionar varios para eliminar */
+.order-select-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.order-select-all { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; cursor: pointer; }
+.order-select-count { font-size: 13px; color: var(--text-muted); }
+.order-check { width: 18px; height: 18px; accent-color: #62121D; flex-shrink: 0; margin-right: 10px; cursor: pointer; }
+.order-item.selected { outline: 2px solid #62121D; outline-offset: -2px; }
