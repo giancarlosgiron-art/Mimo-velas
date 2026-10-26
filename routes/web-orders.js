@@ -40,7 +40,10 @@ router.post('/', async (req, res) => {
       const price = format ? Number(format.price)
         : product ? Number(product.sale_price) : Math.min(500000, Math.max(0, parseInt(it.price) || 0));
       const name = product ? product.name : clip(it.name, 120) || 'Vela';
-      const notes = [it.aroma ? `Aroma: ${clip(it.aroma, 60)}` : 'Aroma a elección', clip(it.details, 300)].filter(Boolean).join(' · ');
+      const details = clip(it.details, 300);
+      // Paquetes donde el cliente eligió varios aromas: ya vienen en el detalle
+      const aromaNote = it.aroma ? `Aroma: ${clip(it.aroma, 60)}` : /Aromas:/.test(details) ? '' : 'Aroma a elección';
+      const notes = [aromaNote, details].filter(Boolean).join(' · ');
       lines.push({ product_id: product ? product.id : null, name, qty, price, notes });
     }
 

@@ -90,6 +90,7 @@ async function initSchema() {
     ALTER TABLE products ADD COLUMN IF NOT EXISTS options TEXT[] DEFAULT '{}';
     ALTER TABLE products ADD COLUMN IF NOT EXISTS allowed_aromas TEXT[] DEFAULT '{}';
     ALTER TABLE products ADD COLUMN IF NOT EXISTS formats JSONB DEFAULT '[]';
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS pick_mode TEXT DEFAULT 'aromas';
     CREATE TABLE IF NOT EXISTS site_content (
       key TEXT PRIMARY KEY, data JSONB NOT NULL, updated_by TEXT,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

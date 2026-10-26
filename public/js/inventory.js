@@ -211,7 +211,7 @@ function productFormatRow(name = '', price = '', count = '') {
   return `<div class="pm-format-row">
     <input class="form-control" placeholder="Ej: 4 figuras" maxlength="60" value="${escapeHtml(name)}" />
     <input class="form-control" type="number" min="0" step="10" placeholder="Precio CLP" value="${escapeHtml(price)}" />
-    <input class="form-control" type="number" min="0" max="24" placeholder="N° figuras" title="Cuántas figuras elige el cliente" value="${escapeHtml(count || '')}" />
+    <input class="form-control" type="number" min="0" max="24" placeholder="¿Cuántos?" title="Cuántos aromas u opciones elige el cliente" value="${escapeHtml(count || '')}" />
     <button type="button" class="btn btn-ghost btn-sm btn-icon" title="Quitar" onclick="this.parentElement.remove()">🗑️</button>
   </div>`;
 }
@@ -247,6 +247,7 @@ async function openProductModal(id = null) {
   document.getElementById('pm-options').value = '';
   renderAllowedAromas(aromas, []);
   renderProductFormats([]);
+  document.getElementById('pm-pick-mode').value = 'aromas';
 
   // Reset image field
   document.getElementById('pm-image').value = '';
@@ -264,6 +265,7 @@ async function openProductModal(id = null) {
     document.getElementById('pm-options').value = (p.options || []).join('\n');
     renderAllowedAromas(aromas, p.allowed_aromas || []);
     renderProductFormats(p.formats || []);
+    document.getElementById('pm-pick-mode').value = p.pick_mode === 'options' ? 'options' : 'aromas';
     document.getElementById('pm-cost').value = p.cost_price;
     document.getElementById('pm-price').value = p.sale_price;
     document.getElementById('pm-price-eur').value = p.price_eur || '';
@@ -392,6 +394,7 @@ async function saveProduct() {
     data.append('options', JSON.stringify(readProductOptions()));
     data.append('allowed_aromas', JSON.stringify(readAllowedAromas()));
     data.append('formats', JSON.stringify(readProductFormats()));
+    data.append('pick_mode', document.getElementById('pm-pick-mode').value);
     data.append('category_id', document.getElementById('pm-category').value || '');
     data.append('cost_price', document.getElementById('pm-cost').value || 0);
     data.append('sale_price', document.getElementById('pm-price').value || 0);
@@ -411,6 +414,7 @@ async function saveProduct() {
       options: readProductOptions(),
       allowed_aromas: readAllowedAromas(),
       formats: readProductFormats(),
+      pick_mode: document.getElementById('pm-pick-mode').value,
       category_id: document.getElementById('pm-category').value || null,
       cost_price: document.getElementById('pm-cost').value || 0,
       sale_price: document.getElementById('pm-price').value || 0,

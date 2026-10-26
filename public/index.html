@@ -428,7 +428,14 @@
           <label class="form-label">Formatos con precio propio (opcional)</label>
           <div id="pm-formats"></div>
           <button type="button" class="btn btn-secondary btn-sm" onclick="addProductFormat()">+ Agregar formato</button>
-          <small class="site-hint">Nombre · precio · N° de figuras que elige el cliente. Ej: "4 figuras" · 10990 · 4. Si no pones el N°, se toma del nombre. Sin formatos, vale el precio de venta.</small>
+          <small class="site-hint">Nombre · precio · cuántos elige el cliente. Ej: "4 aromas" · 10990 · 4. Si no pones el N°, se toma del nombre. Sin formatos, vale el precio de venta.</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">En cada formato, el cliente elige</label>
+          <select class="form-control" id="pm-pick-mode">
+            <option value="aromas">Aromas (ej. paquete de 4 → elige 4 aromas)</option>
+            <option value="options">Opciones de la lista de abajo (ej. 4 figuras)</option>
+          </select>
         </div>
         <div class="form-row">
           <div class="form-group">
