@@ -45,6 +45,7 @@ const DEFAULTS = {
     slides: [],
     product_ids: [],
     sticker_label: '',      // texto chico de la etiqueta flotante. Vacío = la categoría de cada vela
+    vitrina: false,         // estilo "Vitrina": velas sin fondo sobre una ola de cera (en vez de la burbuja)
   },
   catalogo: {
     home_eyebrow: 'El catálogo',

@@ -519,6 +519,20 @@
           style="padding:6px" onchange="previewImage(this)" />
         <small style="color:var(--text-secondary)">JPG, PNG o WebP — máx. 5MB</small>
       </div>
+      <div class="form-group">
+        <label class="form-label">Foto sin fondo (PNG) · para la portada "Vitrina"</label>
+        <input type="hidden" id="pm-cutout" />
+        <div class="pm-cutout">
+          <div class="pm-cutout-img" id="pm-cutout-preview"><span>Sin foto</span></div>
+          <div>
+            <label class="btn btn-secondary btn-sm">Subir PNG sin fondo
+              <input type="file" accept="image/png,image/webp" hidden onchange="uploadProductCutout(this)" />
+            </label>
+            <button type="button" class="btn btn-ghost btn-sm" id="pm-cutout-remove" style="display:none" onclick="setProductCutout('')">Quitar</button>
+            <small class="site-hint" style="display:block;margin-top:6px">Gratis: en iPhone mantén presionada la vela en la foto → Compartir → Guardar imagen. En Mac: clic derecho en la foto → Acciones rápidas → Eliminar fondo.</small>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('product-modal')">Cancelar</button>

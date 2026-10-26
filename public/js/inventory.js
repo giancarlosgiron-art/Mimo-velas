@@ -204,6 +204,24 @@ function renderAllowedAromas(aromas, selected) {
 function readAllowedAromas() {
   return [...document.querySelectorAll('#pm-allowed-aromas input:checked')].map(i => i.value);
 }
+// Foto sin fondo (se sube al momento y se guarda con el producto)
+function setProductCutout(url) {
+  document.getElementById('pm-cutout').value = url || '';
+  document.getElementById('pm-cutout-preview').innerHTML = url ? `<img src="${escapeHtml(url)}" alt="" />` : '<span>Sin foto</span>';
+  document.getElementById('pm-cutout-remove').style.display = url ? '' : 'none';
+}
+async function uploadProductCutout(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  if (!/png|webp/.test(file.type)) { toast('Sube un PNG (o WebP) sin fondo', 'warning'); return; }
+  try {
+    toast('Subiendo foto sin fondo…', 'info');
+    setProductCutout(await uploadSiteImage(file));
+    toast('Lista ✓ — recuerda guardar el producto', 'success');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
 function renderProductFormats(list) {
   document.getElementById('pm-formats').innerHTML = list.map(f => productFormatRow(f.name, f.price, f.count)).join('');
 }
@@ -247,6 +265,7 @@ async function openProductModal(id = null) {
   document.getElementById('pm-options').value = '';
   renderAllowedAromas(aromas, []);
   renderProductFormats([]);
+  setProductCutout('');
   document.getElementById('pm-pick-mode').value = 'aromas';
 
   // Reset image field
@@ -265,6 +284,7 @@ async function openProductModal(id = null) {
     document.getElementById('pm-options').value = (p.options || []).join('\n');
     renderAllowedAromas(aromas, p.allowed_aromas || []);
     renderProductFormats(p.formats || []);
+    setProductCutout(p.cutout || '');
     document.getElementById('pm-pick-mode').value = p.pick_mode === 'options' ? 'options' : 'aromas';
     document.getElementById('pm-cost').value = p.cost_price;
     document.getElementById('pm-price').value = p.sale_price;
@@ -395,6 +415,7 @@ async function saveProduct() {
     data.append('allowed_aromas', JSON.stringify(readAllowedAromas()));
     data.append('formats', JSON.stringify(readProductFormats()));
     data.append('pick_mode', document.getElementById('pm-pick-mode').value);
+    data.append('cutout', document.getElementById('pm-cutout').value);
     data.append('category_id', document.getElementById('pm-category').value || '');
     data.append('cost_price', document.getElementById('pm-cost').value || 0);
     data.append('sale_price', document.getElementById('pm-price').value || 0);
@@ -415,6 +436,7 @@ async function saveProduct() {
       allowed_aromas: readAllowedAromas(),
       formats: readProductFormats(),
       pick_mode: document.getElementById('pm-pick-mode').value,
+      cutout: document.getElementById('pm-cutout').value,
       category_id: document.getElementById('pm-category').value || null,
       cost_price: document.getElementById('pm-cost').value || 0,
       sale_price: document.getElementById('pm-price').value || 0,
