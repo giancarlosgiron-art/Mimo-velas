@@ -122,6 +122,12 @@ const DEFAULTS = {
     max_toppings: '5',
     note: 'Los toppings son decorativos y no tienen aroma. Vela decorativa, no comestible.',
   },
+  pagos: {
+    // Medios de pago que el cliente elige en el carrito (llegan al WhatsApp y al panel)
+    enabled: true,
+    methods: ['Transferencia', 'Efectivo al retirar'],
+    transfer_info: '',      // datos de transferencia: se muestran después de enviar el pedido
+  },
   etiquetas: {
     // Etiquetas sobre las fotos de las velas en el catálogo
     nueva: true,

@@ -92,6 +92,8 @@ async function initSchema() {
     ALTER TABLE products ADD COLUMN IF NOT EXISTS formats JSONB DEFAULT '[]';
     ALTER TABLE products ADD COLUMN IF NOT EXISTS pick_mode TEXT DEFAULT 'aromas';
     ALTER TABLE products ADD COLUMN IF NOT EXISTS cutout TEXT;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS contact_phone TEXT;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method TEXT;
     DELETE FROM order_items WHERE order_id NOT IN (SELECT id FROM orders);
     DELETE FROM notifications n WHERE n.link = '/orders' AND substring(n.title from '#([0-9]+)') IS NOT NULL
       AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.id = substring(n.title from '#([0-9]+)')::int);

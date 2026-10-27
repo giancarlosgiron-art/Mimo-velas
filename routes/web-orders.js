@@ -50,10 +50,13 @@ router.post('/', async (req, res) => {
     const total = lines.reduce((s, l) => s + l.price * l.qty, 0);
     const description = lines.map(l => `${l.qty} × ${l.name} (${l.notes})`).join('\n');
     const contact = clip(req.body.name, 80);
+    // WhatsApp del cliente (por si su mensaje no llega) y cómo quiere pagar
+    const phone = clip(req.body.phone, 40).replace(/[^\d+ ()-]/g, '');
+    const payment = clip(req.body.payment, 60);
     const { rows } = await pool.query(
-      `INSERT INTO orders (type, status, subtotal, total, deposit, description, notes, contact_name, source)
-       VALUES ('web','pending',$1,$1,0,$2,$3,$4,'catalogo') RETURNING id`,
-      [total, description, clip(req.body.note, 500), contact || null]);
+      `INSERT INTO orders (type, status, subtotal, total, deposit, description, notes, contact_name, source, contact_phone, payment_method)
+       VALUES ('web','pending',$1,$1,0,$2,$3,$4,'catalogo',$5,$6) RETURNING id`,
+      [total, description, clip(req.body.note, 500), contact || null, phone || null, payment || null]);
     const orderId = rows[0].id;
     for (const l of lines) {
       await pool.query('INSERT INTO order_items (order_id,product_id,product_name,quantity,unit_price,notes) VALUES ($1,$2,$3,$4,$5,$6)',

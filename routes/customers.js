@@ -76,7 +76,7 @@ router.post('/from-order/:orderId', async (req, res) => {
       return link(rows[0].id, false);
     }
     const name = String(req.body.name || order.contact_name || '').trim().slice(0, 120);
-    const phone = String(req.body.phone || '').trim().slice(0, 40);
+    const phone = String(req.body.phone || order.contact_phone || '').trim().slice(0, 40);
     const digits = phone.replace(/\D/g, '');
     if (!name) return res.status(400).json({ error: 'Escribe el nombre del cliente' });
     // Mismo número de WhatsApp = misma persona

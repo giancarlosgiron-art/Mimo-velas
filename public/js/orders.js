@@ -99,7 +99,7 @@ function orderItem(o) {
         ${orderSelectMode ? `<input type="checkbox" class="order-check" ${selectedOrders.has(o.id) ? 'checked' : ''} onclick="event.stopPropagation()" onchange="toggleOrderSelected(${o.id}, this.checked)" />` : ''}
         <div style="flex:1;min-width:0">
           <div class="order-id">Pedido #${o.id} — ${escOrder(o.customer_name || o.contact_name || 'Sin cliente')}</div>
-          <div class="order-type">${typeLabels[o.type] || o.type}</div>
+          <div class="order-type">${typeLabels[o.type] || o.type}${o.payment_method ? ` · 💳 ${escOrder(o.payment_method)}` : ''}${!o.customer_id && o.contact_phone ? ` · 📱 ${escOrder(o.contact_phone)}` : ''}</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           ${orderStatusBadge(o.status)}
@@ -180,12 +180,14 @@ async function openOrderDetail(id) {
     document.getElementById('od-body').innerHTML = `
       <div class="grid-2 mb-4">
         <div><div class="stat-label">Cliente</div><div style="font-weight:600;margin-top:4px">${escOrder(o.customer_name || o.contact_name || '—')}</div>
-          ${o.customer_phone ? `<div style="font-size:0.78rem;color:var(--text-muted)">📱 ${escOrder(o.customer_phone)}</div>` : ''}
+          ${(o.customer_phone || o.contact_phone) ? `<div style="font-size:0.78rem;color:var(--text-muted)">📱 ${escOrder(o.customer_phone || o.contact_phone)}
+            ${typeof waCustomerLink === 'function' && waCustomerLink(o.customer_phone || o.contact_phone) ? `<a class="btn btn-ghost btn-sm" href="${waCustomerLink(o.customer_phone || o.contact_phone, `¡Hola${o.contact_name ? ' ' + o.contact_name.split(' ')[0] : ''}! Te escribimos de mimo por tu pedido 🕯️`)}" target="_blank" rel="noopener">💬 Escribirle</a>` : ''}</div>` : ''}
+          ${o.payment_method ? `<div style="font-size:0.78rem;color:var(--text-muted)">💳 Pago: ${escOrder(o.payment_method)}</div>` : ''}
           ${o.customer_ig ? `<div style="font-size:0.78rem;color:var(--text-muted)">📸 ${escOrder(o.customer_ig)}</div>` : ''}
           ${o.customer_id
             ? `<button class="btn btn-ghost btn-sm" style="margin-top:6px;padding-left:0" onclick="closeModal('order-detail-modal');openCustomerDetail(${o.customer_id})">👤 Ver ficha del cliente</button>`
             : `<div id="od-link-customer" style="margin-top:8px">
-                <button class="btn btn-secondary btn-sm" onclick="showOrderCustomerForm(${o.id}, ${escOrder(JSON.stringify(o.contact_name || ''))})">👤 Guardar como cliente</button>
+                <button class="btn btn-secondary btn-sm" onclick="showOrderCustomerForm(${o.id}, ${escOrder(JSON.stringify(o.contact_name || ''))}, ${escOrder(JSON.stringify(o.contact_phone || ''))})">👤 Guardar como cliente</button>
               </div>`}
         </div>
         <div><div class="stat-label">Estado</div><div style="margin-top:4px">${orderStatusBadge(o.status)}</div></div>
@@ -238,11 +240,11 @@ async function openOrderDetail(id) {
 }
 
 // ── Pedido web → cliente ─────────────────────────
-function showOrderCustomerForm(orderId, name) {
+function showOrderCustomerForm(orderId, name, phone = '') {
   document.getElementById('od-link-customer').innerHTML = `
     <div class="od-customer-form">
       <input class="form-control" id="od-c-name" placeholder="Nombre" value="${escOrder(name)}" />
-      <input class="form-control" id="od-c-phone" placeholder="WhatsApp (opcional) · +56 9…" />
+      <input class="form-control" id="od-c-phone" placeholder="WhatsApp (opcional) · +56 9…" value="${escOrder(phone || '')}" />
       <small class="site-hint">Con el WhatsApp, si ya es cliente se vincula sola.</small>
       <button class="btn btn-primary btn-sm" onclick="saveOrderAsCustomer(${orderId})">Guardar cliente</button>
     </div>`;
