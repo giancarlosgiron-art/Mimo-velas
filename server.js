@@ -46,6 +46,9 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Error interno del servidor', detail: err.message });
 });
 
+// Pedidos que ya estaban entregados: se registran como venta una sola vez
+require('./db/database').ready.then(() => require('./services/orderSales').backfill()).catch(e => console.error(e.message));
+
 app.listen(PORT, () => {
   console.log('\n🕯️  mimo - Sistema de Gestión');
   console.log(`🚀 Servidor corriendo en: http://localhost:${PORT}`);

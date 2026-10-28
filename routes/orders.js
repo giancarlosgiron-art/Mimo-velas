@@ -2,19 +2,23 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db/database').pool || require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
+const { registerSale, removeSale } = require('../services/orderSales');
 router.use(authMiddleware);
 
 const SL = { pending:'Pendiente', confirmed:'Confirmado', paid:'Pagado', delivered:'Entregado', cancelled:'Cancelado' };
 
 router.get('/', async (req, res) => {
   try {
-    const { status, type } = req.query;
+    const { status, type, view } = req.query;
     const params = []; let i = 0;
-    let q = `SELECT o.*,c.name as customer_name,c.phone as customer_phone,c.instagram as customer_ig
-             FROM orders o LEFT JOIN customers c ON o.customer_id=c.id WHERE 1=1`;
+    let q = `SELECT o.*,c.name as customer_name,c.phone as customer_phone,c.instagram as customer_ig,s.id as sale_id
+             FROM orders o LEFT JOIN customers c ON o.customer_id=c.id LEFT JOIN sales s ON s.order_id=o.id WHERE 1=1`;
+    // Activos: lo que hay que atender. Historial: entregados y cancelados.
+    if (view === 'active') q += ` AND o.status NOT IN ('delivered','cancelled')`;
+    if (view === 'history') q += ` AND o.status IN ('delivered','cancelled')`;
     if (status) { q += ` AND o.status=$${++i}`; params.push(status); }
     if (type)   { q += ` AND o.type=$${++i}`;   params.push(type); }
-    q += ' ORDER BY o.created_at DESC';
+    q += view === 'history' ? ' ORDER BY COALESCE(o.delivered_at, o.updated_at) DESC' : ' ORDER BY o.created_at DESC';
     const { rows } = await pool.query(q, params);
     rows.forEach(o => { o.status_label = SL[o.status]||o.status; });
     res.json(rows);
@@ -23,8 +27,8 @@ router.get('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const { rows } = await pool.query(`SELECT o.*,c.name as customer_name,c.phone as customer_phone,c.instagram as customer_ig
-      FROM orders o LEFT JOIN customers c ON o.customer_id=c.id WHERE o.id=$1`,[req.params.id]);
+    const { rows } = await pool.query(`SELECT o.*,c.name as customer_name,c.phone as customer_phone,c.instagram as customer_ig,s.id as sale_id
+      FROM orders o LEFT JOIN customers c ON o.customer_id=c.id LEFT JOIN sales s ON s.order_id=o.id WHERE o.id=$1`,[req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Pedido no encontrado' });
     const o = rows[0];
     const { rows: items } = await pool.query('SELECT * FROM order_items WHERE order_id=$1',[o.id]);
@@ -61,14 +65,30 @@ router.put('/:id', async (req, res) => {
     if (!rows[0]) return res.status(404).json({ error: 'Pedido no encontrado' });
     const o = rows[0];
     const { status, deposit, notes, due_date } = req.body;
-    await pool.query('UPDATE orders SET status=$1,deposit=$2,notes=$3,due_date=$4,updated_at=NOW() WHERE id=$5',
-      [status||o.status, deposit!==undefined?parseFloat(deposit):o.deposit, notes??o.notes, due_date??o.due_date, req.params.id]);
+    const next = status || o.status;
+    const client = await pool.connect();
+    let saleId = null;
+    try {
+      await client.query('BEGIN');
+      await client.query('UPDATE orders SET status=$1,deposit=$2,notes=$3,due_date=$4,updated_at=NOW() WHERE id=$5',
+        [next, deposit!==undefined?parseFloat(deposit):o.deposit, notes??o.notes, due_date??o.due_date, req.params.id]);
+      // Entregado → se registra la venta (costo, ganancia, stock y cliente). Si deja de estar entregado, se anula.
+      if (next === 'delivered' && o.status !== 'delivered') {
+        await client.query('UPDATE orders SET delivered_at=NOW() WHERE id=$1', [o.id]);
+        saleId = await registerSale(client, o.id, req.user?.id);
+      } else if (o.status === 'delivered' && next !== 'delivered') {
+        await removeSale(client, o.id);
+        await client.query('UPDATE orders SET delivered_at=NULL WHERE id=$1', [o.id]);
+      }
+      await client.query('COMMIT');
+    } catch (e) { await client.query('ROLLBACK'); throw e; }
+    finally { client.release(); }
     if (status&&status!==o.status) {
       const { rows: cr } = await pool.query('SELECT name FROM customers WHERE id=$1',[o.customer_id]);
       await pool.query('INSERT INTO notifications (type,title,message,link) VALUES ($1,$2,$3,$4)',
         ['info',`Pedido #${o.id} actualizado`,`Estado: ${SL[status]} - ${cr[0]?.name}`,'/orders']);
     }
-    res.json({ message: 'Pedido actualizado' });
+    res.json({ message: 'Pedido actualizado', sale_id: saleId });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -77,6 +97,7 @@ async function deleteOrders(ids) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    for (const id of ids) await removeSale(client, id);   // un pedido borrado no cuenta como venta
     await client.query('DELETE FROM order_items WHERE order_id = ANY($1)', [ids]);
     for (const id of ids) {
       await client.query("DELETE FROM notifications WHERE link='/orders' AND title ~ ('#' || $1::text || '([^0-9]|$)')", [id]);

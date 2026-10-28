@@ -158,77 +158,13 @@
 
       <!-- ═══ DASHBOARD ═══ -->
       <div class="page active" id="page-dashboard">
-        <div class="stats-grid" id="stats-grid">
-          <div class="stat-card skeleton" style="height:120px"></div>
-          <div class="stat-card skeleton" style="height:120px"></div>
-          <div class="stat-card skeleton" style="height:120px"></div>
-          <div class="stat-card skeleton" style="height:120px"></div>
-        </div>
-
-        <div class="dashboard-grid">
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <div class="card-title">Ventas</div>
-                <div class="card-subtitle">Últimos 30 días</div>
-              </div>
-              <div class="filters">
-                <button class="btn btn-ghost btn-sm chart-period-btn active" data-days="30">30d</button>
-                <button class="btn btn-ghost btn-sm chart-period-btn" data-days="14">14d</button>
-                <button class="btn btn-ghost btn-sm chart-period-btn" data-days="7">7d</button>
-              </div>
-            </div>
-            <div class="card-body">
-              <div class="chart-container">
-                <canvas id="salesChart"></canvas>
-              </div>
-            </div>
-          </div>
-
-          <div style="display:flex;flex-direction:column;gap:16px">
-            <div class="card">
-              <div class="card-header">
-                <div class="card-title">⚠️ Stock Bajo</div>
-                <a href="#" onclick="navigate('inventory')" class="btn btn-ghost btn-sm">Ver todo</a>
-              </div>
-              <div id="low-stock-list" style="padding:0 4px">
-                <div class="skeleton" style="height:40px;margin:10px 12px;border-radius:8px"></div>
-                <div class="skeleton" style="height:40px;margin:10px 12px;border-radius:8px"></div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <div class="card-title">⭐ Top Clientes</div>
-              </div>
-              <div id="top-customers-list" style="padding:0 4px">
-                <div class="skeleton" style="height:40px;margin:10px 12px;border-radius:8px"></div>
-                <div class="skeleton" style="height:40px;margin:10px 12px;border-radius:8px"></div>
-              </div>
-            </div>
-          <div id="expense-summary-section" style="margin-top:16px"></div>
-          </div>
-        </div>
-
-        <div class="grid-2 mt-4">
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">🏆 Productos más vendidos</div>
-              <span class="text-muted text-sm">Últimos 30 días</span>
-            </div>
-            <div id="top-products-list" class="card-body">
-              <div class="skeleton" style="height:200px;border-radius:8px"></div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">🕐 Ventas Recientes</div>
-              <a href="#" onclick="navigate('sales')" class="btn btn-ghost btn-sm">Ver todo</a>
-            </div>
-            <div id="recent-sales-list">
-              <div class="skeleton" style="height:200px;margin:16px;border-radius:8px"></div>
-            </div>
+        <!-- Finanzas del mes: se arma en js/dashboard.js -->
+        <div id="dash-root">
+          <div class="stats-grid">
+            <div class="stat-card skeleton" style="height:120px"></div>
+            <div class="stat-card skeleton" style="height:120px"></div>
+            <div class="stat-card skeleton" style="height:120px"></div>
+            <div class="stat-card skeleton" style="height:120px"></div>
           </div>
         </div>
       </div>
@@ -335,7 +271,7 @@
           <button class="btn btn-secondary order-filter" data-status="pending">Pendientes</button>
           <button class="btn btn-secondary order-filter" data-status="confirmed">Confirmados</button>
           <button class="btn btn-secondary order-filter" data-status="paid">Pagados</button>
-          <button class="btn btn-secondary order-filter" data-status="delivered">Entregados</button>
+          <button class="btn btn-secondary order-filter order-history-btn" data-status="history">📚 Historial</button>
         </div>
 
         <div id="orders-content"></div>
@@ -518,6 +454,12 @@
         <input type="file" class="form-control" id="pm-image" accept="image/*"
           style="padding:6px" onchange="previewImage(this)" />
         <small style="color:var(--text-secondary)">JPG, PNG o WebP — máx. 5MB</small>
+        <input type="text" class="form-control" id="pm-main-label" maxlength="40" placeholder="Color de esta foto (opcional) · Ej: Rosado" style="margin-top:8px" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Más fotos · otros colores (opcional)</label>
+        <div id="pm-photos" class="pm-photos"></div>
+        <small class="site-hint">Si les pones nombre de color, el cliente elige el color en la página y te llega en el pedido.</small>
       </div>
       <div class="form-group">
         <label class="form-label">Foto sin fondo (PNG) · para la portada "Vitrina"</label>

@@ -204,6 +204,60 @@ function renderAllowedAromas(aromas, selected) {
 function readAllowedAromas() {
   return [...document.querySelectorAll('#pm-allowed-aromas input:checked')].map(i => i.value);
 }
+// ── Más fotos (otros colores): se guardan al momento ──
+let pmPhotos = [];
+function renderProductPhotos(productId, photos) {
+  pmPhotos = photos;
+  const el = document.getElementById('pm-photos');
+  if (!productId) { el.innerHTML = '<small class="site-hint">Guarda el producto primero y después agrega más fotos.</small>'; return; }
+  el.innerHTML = photos.map((ph, i) => `
+    <div class="pm-photo">
+      <img src="/api/products/photos/${ph.id}/image" alt="" />
+      <input class="form-control" value="${escapeHtml(ph.label || '')}" maxlength="40" placeholder="Color" onchange="labelProductPhoto(${productId}, ${ph.id}, this.value)" />
+      <div class="pm-photo-actions">
+        <button type="button" class="btn btn-ghost btn-sm btn-icon" title="Antes" ${i === 0 ? 'disabled' : ''} onclick="moveProductPhoto(${productId}, ${i}, -1)">←</button>
+        <button type="button" class="btn btn-ghost btn-sm btn-icon" title="Después" ${i === photos.length - 1 ? 'disabled' : ''} onclick="moveProductPhoto(${productId}, ${i}, 1)">→</button>
+        <button type="button" class="btn btn-ghost btn-sm btn-icon" title="Quitar" onclick="removeProductPhoto(${productId}, ${ph.id})">🗑️</button>
+      </div>
+    </div>`).join('') + `
+    <label class="pm-photo pm-photo-add">
+      <span>＋</span><small>Agregar fotos</small>
+      <input type="file" accept="image/*" multiple hidden onchange="addProductPhotos(${productId}, this)" />
+    </label>`;
+}
+async function refreshProductPhotos(productId) {
+  const p = await API.product(productId);
+  renderProductPhotos(productId, p.photos || []);
+}
+async function addProductPhotos(productId, input) {
+  const files = [...(input.files || [])];
+  input.value = '';
+  if (!files.length) return;
+  try {
+    toast(`Subiendo ${files.length} foto${files.length > 1 ? 's' : ''}…`, 'info');
+    for (const f of files) await API.addProductPhoto(productId, await compressImage(f));
+    await refreshProductPhotos(productId);
+    toast('Fotos agregadas ✓ — ponles el nombre del color', 'success');
+  } catch (err) { toast(err.message, 'error'); }
+}
+async function labelProductPhoto(productId, photoId, label) {
+  try { await API.updateProductPhoto(photoId, { label: label.trim() }); toast('Color guardado ✓', 'success'); }
+  catch (err) { toast(err.message, 'error'); }
+}
+async function moveProductPhoto(productId, i, dir) {
+  const list = pmPhotos.slice();
+  [list[i], list[i + dir]] = [list[i + dir], list[i]];
+  try {
+    await Promise.all(list.map((ph, pos) => API.updateProductPhoto(ph.id, { position: pos + 1 })));
+    await refreshProductPhotos(productId);
+  } catch (err) { toast(err.message, 'error'); }
+}
+async function removeProductPhoto(productId, photoId) {
+  if (!confirm('¿Quitar esta foto?')) return;
+  try { await API.deleteProductPhoto(photoId); await refreshProductPhotos(productId); }
+  catch (err) { toast(err.message, 'error'); }
+}
+
 // Foto sin fondo (se sube al momento y se guarda con el producto)
 function setProductCutout(url) {
   document.getElementById('pm-cutout').value = url || '';
@@ -266,6 +320,8 @@ async function openProductModal(id = null) {
   renderAllowedAromas(aromas, []);
   renderProductFormats([]);
   setProductCutout('');
+  document.getElementById('pm-main-label').value = '';
+  renderProductPhotos(null, []);
   document.getElementById('pm-pick-mode').value = 'aromas';
 
   // Reset image field
@@ -285,6 +341,8 @@ async function openProductModal(id = null) {
     renderAllowedAromas(aromas, p.allowed_aromas || []);
     renderProductFormats(p.formats || []);
     setProductCutout(p.cutout || '');
+    document.getElementById('pm-main-label').value = p.main_label || '';
+    renderProductPhotos(p.id, p.photos || []);
     document.getElementById('pm-pick-mode').value = p.pick_mode === 'options' ? 'options' : 'aromas';
     document.getElementById('pm-cost').value = p.cost_price;
     document.getElementById('pm-price').value = p.sale_price;
@@ -416,6 +474,7 @@ async function saveProduct() {
     data.append('formats', JSON.stringify(readProductFormats()));
     data.append('pick_mode', document.getElementById('pm-pick-mode').value);
     data.append('cutout', document.getElementById('pm-cutout').value);
+    data.append('main_label', document.getElementById('pm-main-label').value.trim());
     data.append('category_id', document.getElementById('pm-category').value || '');
     data.append('cost_price', document.getElementById('pm-cost').value || 0);
     data.append('sale_price', document.getElementById('pm-price').value || 0);
@@ -437,6 +496,7 @@ async function saveProduct() {
       formats: readProductFormats(),
       pick_mode: document.getElementById('pm-pick-mode').value,
       cutout: document.getElementById('pm-cutout').value,
+      main_label: document.getElementById('pm-main-label').value.trim(),
       category_id: document.getElementById('pm-category').value || null,
       cost_price: document.getElementById('pm-cost').value || 0,
       sale_price: document.getElementById('pm-price').value || 0,

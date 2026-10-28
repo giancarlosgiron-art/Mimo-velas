@@ -1143,3 +1143,52 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .order-select-count { font-size: 13px; color: var(--text-muted); }
 .order-check { width: 18px; height: 18px; accent-color: #62121D; flex-shrink: 0; margin-right: 10px; cursor: pointer; }
 .order-item.selected { outline: 2px solid #62121D; outline-offset: -2px; }
+
+/* ── Dashboard de finanzas ── */
+.dash-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.dash-month { display: inline-flex; align-items: center; gap: 6px; padding: 4px; border-radius: 999px; background: var(--bg-card); border: 1px solid var(--border); }
+.dash-month strong { font-family: var(--font-display); font-size: 1.15rem; text-transform: capitalize; padding: 0 8px; min-width: 150px; text-align: center; }
+.dash-hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 24px; align-items: center; padding: 28px 30px; border-radius: 28px; color: #F0EEE9; margin-bottom: 16px; position: relative; overflow: hidden;
+  background: radial-gradient(110% 90% at 0% 0%, #7B3841 0%, transparent 55%), radial-gradient(90% 80% at 100% 100%, #3D0B12 0%, transparent 60%), linear-gradient(135deg, #7B3841, #62121D 45%, #3D0B12);
+  box-shadow: inset 0 1.5px 0 rgba(255,255,255,0.3), inset 0 0 0 1px rgba(255,255,255,0.07), 0 24px 50px -28px rgba(43,29,31,0.6); }
+.dash-hero::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, rgba(255,255,255,0.14), transparent 35%, transparent 70%, rgba(255,255,255,0.06)); }
+.dash-hero-label { font-size: 11px; font-weight: 800; letter-spacing: .28em; text-transform: uppercase; opacity: .75; }
+.dash-hero-value { font-family: var(--font-display); font-size: clamp(2.6rem, 5vw, 3.8rem); font-weight: 600; line-height: 1.05; margin: 6px 0; }
+.dash-hero-sub { font-size: 14px; opacity: .9; }
+.dash-hero-split { position: relative; display: grid; gap: 6px; padding: 16px 18px; border-radius: 20px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.22); backdrop-filter: blur(10px); font-size: 14px; }
+.dash-hero-split > div { display: flex; justify-content: space-between; gap: 10px; }
+.dash-hero-split span { opacity: .8; }
+.dash-hero-line { border-top: 1px solid rgba(255,255,255,0.2); padding-top: 6px; }
+.dash-hero-line.total strong { font-size: 1.1rem; }
+.dash-hero .dash-delta { background: rgba(255,255,255,0.16); color: #F0EEE9; }
+.dash-delta { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 800; }
+.dash-delta.up { background: rgba(110,115,77,0.15); color: var(--success); }
+.dash-delta.down { background: rgba(180,35,24,0.1); color: var(--danger); }
+.dash-kpis { grid-template-columns: repeat(4, 1fr); }
+.dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.dash-goal-bar { position: relative; height: 16px; border-radius: 999px; background: rgba(43,29,31,0.07); overflow: hidden; }
+.dash-goal-fill, .dash-goal-proj { position: absolute; inset: 0 auto 0 0; border-radius: 999px; }
+.dash-goal-proj { background: rgba(98,18,29,0.18); }
+.dash-goal-fill { background: linear-gradient(90deg, #7B3841, #62121D); box-shadow: inset 0 1px 0 rgba(255,255,255,0.35); }
+.dash-goal-legend { margin-top: 10px; font-size: 14px; }
+.dash-note { font-size: 13.5px; color: var(--text-secondary); margin: 10px 0 0; }
+.dash-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 18px; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+.dash-row small { color: var(--text-muted); }
+.dash-row:last-child { border-bottom: 0; }
+.dash-margin { width: 90px; height: 6px; border-radius: 999px; background: rgba(43,29,31,0.08); overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 6px; }
+.dash-margin div { height: 100%; background: var(--success); border-radius: 999px; }
+.dash-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+@media (max-width: 900px) {
+  .dash-hero { grid-template-columns: 1fr; padding: 22px; }
+  .dash-kpis { grid-template-columns: repeat(2, 1fr); }
+  .dash-grid { grid-template-columns: 1fr; }
+}
+
+/* Más fotos del producto */
+.pm-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+.pm-photo { display: flex; flex-direction: column; gap: 6px; padding: 6px; border-radius: 14px; border: 1px solid var(--border); background: var(--bg-card); }
+.pm-photo img { width: 100%; aspect-ratio: 4/5; object-fit: cover; border-radius: 10px; }
+.pm-photo .form-control { padding: 6px 8px; font-size: 12.5px; }
+.pm-photo-actions { display: flex; justify-content: space-between; }
+.pm-photo-add { align-items: center; justify-content: center; cursor: pointer; border-style: dashed; min-height: 180px; color: var(--text-muted); }
+.pm-photo-add span { font-size: 28px; line-height: 1; }

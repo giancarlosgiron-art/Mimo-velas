@@ -10,10 +10,11 @@ let orderSelectMode = false;
 const selectedOrders = new Set();
 let lastOrders = [];
 
+// Activos: lo que hay que atender. "history": entregados (ya son venta) y cancelados.
 async function loadOrders(status = currentOrderFilter) {
   currentOrderFilter = status;
   try {
-    const orders = await API.orders(status ? { status } : {});
+    const orders = await API.orders(status === 'history' ? { view: 'history' } : status ? { status, view: 'active' } : { view: 'active' });
     renderOrders(orders);
   } catch (err) {
     toast('Error cargando pedidos: ' + err.message, 'error');
@@ -24,14 +25,28 @@ function renderOrders(orders) {
   const el = document.getElementById('orders-content');
   lastOrders = orders;
 
+  const history = currentOrderFilter === 'history';
   if (!orders.length) {
-    el.innerHTML = `
+    el.innerHTML = history ? `
+      <div class="empty-state"><div class="empty-icon">📚</div><h3>Historial vacío</h3>
+        <p>Cuando marques un pedido como <strong>Entregado</strong>, pasa aquí y se registra como venta.</p></div>` : `
       <div class="empty-state">
-        <div class="empty-icon">📋</div>
-        <h3>Sin pedidos</h3>
-        <p>Los apartados y pedidos personalizados aparecerán aquí</p>
-        <button class="btn btn-primary" onclick="openOrderModal()">+ Nuevo pedido</button>
+        <div class="empty-icon">✨</div>
+        <h3>Todo al día</h3>
+        <p>No hay pedidos por atender. Los entregados están en 📚 Historial.</p>
       </div>`;
+    return;
+  }
+  if (history) {
+    const delivered = orders.filter(o => o.status === 'delivered');
+    const total = delivered.reduce((s, o) => s + (o.total || 0), 0);
+    el.innerHTML = `
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
+        <div class="stat-card success"><span class="stat-icon">🎁</span><div class="stat-label">Entregados</div><div class="stat-value">${delivered.length}</div></div>
+        <div class="stat-card"><span class="stat-icon">💰</span><div class="stat-label">Vendido</div><div class="stat-value">${fmt(total)}</div></div>
+        <div class="stat-card"><span class="stat-icon">❌</span><div class="stat-label">Cancelados</div><div class="stat-value">${orders.length - delivered.length}</div></div>
+      </div>
+      <div>${orders.map(o => orderItem(o)).join('')}</div>`;
     return;
   }
 
@@ -91,7 +106,7 @@ async function deleteSelectedOrders() {
 
 function orderItem(o) {
   const typeLabels = { reservation: '📌 Reserva', layaway: '🏷️ Apartado', custom_order: '✂️ Pedido personalizado', web: '🛍️ Pedido web (catálogo)' };
-  const balance = (o.total || 0) - (o.deposit || 0);
+  const balance = o.status === 'delivered' ? 0 : (o.total || 0) - (o.deposit || 0);   // entregado = venta pagada
 
   return `
     <div class="order-item ${orderSelectMode && selectedOrders.has(o.id) ? 'selected' : ''}" onclick="${orderSelectMode ? `toggleOrderSelected(${o.id}, ${!selectedOrders.has(o.id)})` : `openOrderDetail(${o.id})`}">
@@ -99,7 +114,7 @@ function orderItem(o) {
         ${orderSelectMode ? `<input type="checkbox" class="order-check" ${selectedOrders.has(o.id) ? 'checked' : ''} onclick="event.stopPropagation()" onchange="toggleOrderSelected(${o.id}, this.checked)" />` : ''}
         <div style="flex:1;min-width:0">
           <div class="order-id">Pedido #${o.id} — ${escOrder(o.customer_name || o.contact_name || 'Sin cliente')}</div>
-          <div class="order-type">${typeLabels[o.type] || o.type}${o.payment_method ? ` · 💳 ${escOrder(o.payment_method)}` : ''}${!o.customer_id && o.contact_phone ? ` · 📱 ${escOrder(o.contact_phone)}` : ''}</div>
+          <div class="order-type">${o.sale_id ? `<span class="badge badge-success" style="margin-right:6px">✓ Venta #${o.sale_id}</span>` : ''}${typeLabels[o.type] || o.type}${o.payment_method ? ` · 💳 ${escOrder(o.payment_method)}` : ''}${!o.customer_id && o.contact_phone ? ` · 📱 ${escOrder(o.contact_phone)}` : ''}</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           ${orderStatusBadge(o.status)}
@@ -174,7 +189,7 @@ async function openOrderDetail(id) {
   try {
     const o = await API.order(id);
     const typeLabels = { reservation: '📌 Reserva', layaway: '🏷️ Apartado', custom_order: '✂️ Pedido personalizado', web: '🛍️ Pedido web (catálogo)' };
-    const balance = (o.total || 0) - (o.deposit || 0);
+    const balance = o.status === 'delivered' ? 0 : (o.total || 0) - (o.deposit || 0);   // entregado = venta pagada
 
     document.getElementById('od-title').textContent = `Pedido #${o.id}`;
     document.getElementById('od-body').innerHTML = `
@@ -276,8 +291,12 @@ async function saveOrderAsCustomer(orderId, extra = {}) {
 async function updateOrderStatus(id) {
   const status = document.getElementById('od-status-update').value;
   try {
-    await API.updateOrder(id, { status });
-    toast(`Estado actualizado: ${status}`, 'success');
+    const res = await API.updateOrder(id, { status });
+    const labels = { pending: 'Pendiente', confirmed: 'Confirmado', paid: 'Pagado', shipped: 'Enviado', delivered: 'Entregado', cancelled: 'Cancelado' };
+    if (status === 'delivered') {
+      toast(`🎁 Entregado · venta${res.sale_id ? ` #${res.sale_id}` : ''} registrada. Pasó al historial.`, 'success');
+      closeModal('order-detail-modal');
+    } else toast(`Estado: ${labels[status] || status}`, 'success');
     await loadOrders();
     await loadNotifications();
   } catch (err) {

@@ -1,322 +1,193 @@
-// ── Dashboard Module ─────────────────────────────────────────
-let salesChart = null;
+// ── Dashboard: finanzas del mes ──────────────────────────────
+// Ventas (pedidos entregados + ventas en tienda), costo de las velas, ganancia, rentabilidad,
+// gastos, meta mensual, rentabilidad por vela y pedidos por seguir.
+let financeChart = null;
+let dashMonth = null;     // 'YYYY-MM' (null = mes actual)
+
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+function escDash(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function monthLabel(ym) { const [y, m] = ym.split('-').map(Number); return `${MESES[m - 1]} ${y}`; }
+function shiftMonth(ym, d) { const [y, m] = ym.split('-').map(Number); const dt = new Date(y, m - 1 + d, 1); return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`; }
+function pct(n) { return `${(Math.round(n * 10) / 10).toLocaleString('es-CL')}%`; }
+function delta(cur, prev) {
+  if (!prev) return cur > 0 ? '<span class="dash-delta up">nuevo</span>' : '';
+  const d = (cur - prev) / Math.abs(prev) * 100;
+  return `<span class="dash-delta ${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '↑' : '↓'} ${pct(Math.abs(d))}</span>`;
+}
 
 async function loadDashboard() {
   try {
-    const [stats, chart, topProducts, recentSales, lowStock, topCustomers, expenses] = await Promise.all([
-      API.dashStats(),
-      API.dashChart(30),
-      API.dashTopProducts(),
-      API.dashRecentSales(),
-      API.dashLowStock(),
-      API.dashTopCustomers(),
-      API.expenses(),
-    ]);
-
-    renderStats(stats);
-    renderSalesChart(chart, 30);
-    renderTopProducts(topProducts);
-    renderRecentSales(recentSales);
-    renderLowStock(lowStock);
-    renderTopCustomers(topCustomers);
-    renderExpensesSummary(expenses, stats);
+    const [f, lowStock, recent] = await Promise.all([API.dashFinance(dashMonth), API.dashLowStock(), API.dashRecentSales()]);
+    dashMonth = f.month;
+    renderDashboard(f, lowStock, recent);
   } catch (err) {
     toast('Error cargando dashboard: ' + err.message, 'error');
   }
 }
 
-function renderStats(s) {
-  document.getElementById('stats-grid').innerHTML = `
-    <div class="stat-card">
-      <span class="stat-icon">💰</span>
-      <div class="stat-label">Ventas hoy</div>
-      <div class="stat-value">${fmt(s.today.total)}</div>
-      <div class="stat-change neutral">${s.today.count} transacciones</div>
+function changeDashMonth(d) { dashMonth = shiftMonth(dashMonth, d); loadDashboard(); }
+
+function renderDashboard(f, lowStock, recent) {
+  const c = f.current, p = f.previous;
+  const goalPct = f.goal > 0 ? Math.min(100, c.revenue / f.goal * 100) : 0;
+  const projPct = f.goal > 0 ? Math.min(100, f.projection / f.goal * 100) : 0;
+  document.getElementById('dash-root').innerHTML = `
+    <div class="dash-head">
+      <div class="dash-month">
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="changeDashMonth(-1)" title="Mes anterior">‹</button>
+        <strong>${monthLabel(f.month)}</strong>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="changeDashMonth(1)" ${f.isCurrent ? 'disabled' : ''} title="Mes siguiente">›</button>
+      </div>
+      <small class="text-muted">Cuenta los pedidos entregados y las ventas en tienda.</small>
     </div>
-    <div class="stat-card success">
-      <span class="stat-icon">📈</span>
-      <div class="stat-label">Ventas del mes</div>
-      <div class="stat-value">${fmt(s.month.total)}</div>
-      <div class="stat-change ${s.month.growth >= 0 ? 'up' : 'down'}">
-        ${s.month.growth >= 0 ? '↑' : '↓'} ${Math.abs(s.month.growth)}% vs mes anterior
+
+    <div class="dash-hero">
+      <div>
+        <div class="dash-hero-label">Ganancia del mes</div>
+        <div class="dash-hero-value">${fmt(c.profit)}</div>
+        <div class="dash-hero-sub">Rentabilidad <strong>${pct(c.margin)}</strong> · ${delta(c.profit, p.profit)} vs mes anterior</div>
+      </div>
+      <div class="dash-hero-split">
+        <div><span>Ventas</span><strong>${fmt(c.revenue)}</strong></div>
+        <div><span>− Costo de las velas</span><strong>${fmt(c.cost)}</strong></div>
+        <div class="dash-hero-line"><span>= Ganancia</span><strong>${fmt(c.profit)}</strong></div>
+        <div><span>− Gastos del mes</span><strong>${fmt(c.expenses)}</strong></div>
+        <div class="dash-hero-line total"><span>= Ganancia final</span><strong>${fmt(c.net)}</strong></div>
       </div>
     </div>
-    <div class="stat-card info">
-      <span class="stat-icon">💎</span>
-      <div class="stat-label">Ganancia del mes</div>
-      <div class="stat-value">${fmt(s.profit)}</div>
-      <div class="stat-change neutral">${s.month.count} ventas totales</div>
+
+    <div class="stats-grid dash-kpis">
+      <div class="stat-card"><div class="stat-label">Ventas</div><div class="stat-value">${fmt(c.revenue)}</div><div class="stat-change neutral">${delta(c.revenue, p.revenue)} vs mes anterior</div></div>
+      <div class="stat-card"><div class="stat-label">Pedidos vendidos</div><div class="stat-value">${c.sales}</div><div class="stat-change neutral">${c.units} ${c.units === 1 ? 'vela' : 'velas'}</div></div>
+      <div class="stat-card"><div class="stat-label">Ticket promedio</div><div class="stat-value">${fmt(c.ticket)}</div><div class="stat-change neutral">${delta(c.ticket, p.ticket)} vs mes anterior</div></div>
+      <div class="stat-card"><div class="stat-label">Ganancia por vela</div><div class="stat-value">${fmt(c.units ? c.profit / c.units : 0)}</div><div class="stat-change neutral">promedio</div></div>
     </div>
-    <div class="stat-card warning">
-      <span class="stat-icon">📋</span>
-      <div class="stat-label">Pedidos pendientes</div>
-      <div class="stat-value">${s.pendingOrders}</div>
-      <div class="stat-change neutral">
-        ${s.lowStock} con stock bajo • ${s.outOfStock} agotados
+
+    <div class="dash-grid">
+      <div class="card">
+        <div class="card-header"><div><div class="card-title">🎯 Meta del mes</div><div class="card-subtitle">${f.goal ? `Meta: ${fmt(f.goal)} en ventas` : 'Ponte una meta de ventas para el mes'}</div></div>
+          <button class="btn btn-ghost btn-sm" onclick="editGoal(${f.goal})">${f.goal ? 'Cambiar' : 'Definir meta'}</button></div>
+        <div class="card-body">
+          ${f.goal ? `
+            <div class="dash-goal-bar"><div class="dash-goal-proj" style="width:${projPct}%"></div><div class="dash-goal-fill" style="width:${goalPct}%"></div></div>
+            <div class="dash-goal-legend"><strong>${pct(c.revenue / f.goal * 100)}</strong> logrado · faltan ${fmt(Math.max(0, f.goal - c.revenue))}</div>
+            ${f.isCurrent ? `<p class="dash-note">A este ritmo cerrarías el mes en <strong>${fmt(f.projection)}</strong>${f.projection >= f.goal ? ' — ¡llegas a la meta! 🎉' : ` (${fmt(f.goal - f.projection)} bajo la meta)`}. Quedan ${f.daysLeft} días.</p>` : ''}
+          ` : '<p class="dash-note">Con una meta verás cuánto llevas y si al ritmo actual llegas a fin de mes.</p>'}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">⏳ Pedidos por seguir</div><a href="#" onclick="navigate('orders')" class="btn btn-ghost btn-sm">Pedidos</a></div>
+        <div>
+          ${f.followUp.length ? f.followUp.map(o => {
+            const wa = typeof waCustomerLink === 'function' ? waCustomerLink(o.phone, `¡Hola${o.name ? ' ' + o.name.split(' ')[0] : ''}! Te escribimos de mimo por tu pedido 🕯️`) : '';
+            const days = Math.floor((Date.now() - new Date(o.created_at)) / 86400000);
+            return `<div class="dash-row">
+              <div><strong>#${o.id} ${escDash(o.name || 'Sin nombre')}</strong><br><small>Pendiente hace ${days} días · ${fmt(o.total)}</small></div>
+              ${wa ? `<a class="btn btn-secondary btn-sm" href="${wa}" target="_blank" rel="noopener">💬 Escribir</a>` : `<button class="btn btn-ghost btn-sm" onclick="navigate('orders');setTimeout(()=>openOrderDetail(${o.id}),400)">Ver</button>`}
+            </div>`;
+          }).join('') : '<p class="dash-note" style="padding:0 18px 16px">✅ Ningún pedido pendiente hace más de 2 días.</p>'}
+        </div>
       </div>
     </div>
-    <div class="stat-card">
-      <span class="stat-icon">🤍</span>
-      <div class="stat-label">Total clientes</div>
-      <div class="stat-value">${s.totalCustomers}</div>
-      <div class="stat-change neutral">⭐ ${s.vipCustomers} VIP</div>
+
+    <div class="card mt-4">
+      <div class="card-header"><div><div class="card-title">Ventas y ganancia por día</div><div class="card-subtitle">${monthLabel(f.month)}</div></div></div>
+      <div class="card-body"><div class="chart-container"><canvas id="financeChart"></canvas></div></div>
     </div>
-    <div class="stat-card">
-      <span class="stat-icon">📦</span>
-      <div class="stat-label">Productos activos</div>
-      <div class="stat-value">${s.totalProducts}</div>
-      <div class="stat-change ${s.outOfStock > 0 ? 'down' : 'neutral'}">
-        ${s.outOfStock > 0 ? `⚠️ ${s.outOfStock} agotados` : 'Todo disponible ✓'}
+
+    <div class="card mt-4">
+      <div class="card-header"><div><div class="card-title">🕯️ Rentabilidad por vela</div><div class="card-subtitle">Lo que te dejó cada vela este mes</div></div></div>
+      ${f.products.length ? `
+      <div class="table-wrap"><table>
+        <thead><tr><th>Vela</th><th>Vendidas</th><th>Ventas</th><th>Costo</th><th>Ganancia</th><th>Rentabilidad</th></tr></thead>
+        <tbody>${f.products.map(r => {
+          const m = r.revenue > 0 ? r.profit / r.revenue * 100 : 0;
+          return `<tr>
+            <td><strong>${escDash(r.name)}</strong>${r.missing_cost ? ' <span class="badge badge-warning" title="Sin costo cargado: la ganancia sale inflada">sin costo</span>' : ''}</td>
+            <td>${r.units}</td><td>${fmt(r.revenue)}</td><td>${fmt(r.cost)}</td><td class="font-bold">${fmt(r.profit)}</td>
+            <td><div class="dash-margin"><div style="width:${Math.max(0, Math.min(100, m))}%"></div></div><small>${pct(m)}</small></td>
+          </tr>`; }).join('')}</tbody>
+      </table></div>` : '<div class="empty-state" style="padding:30px"><p>Aún no hay ventas este mes. Cuando marques un pedido como <strong>Entregado</strong>, aparece aquí.</p></div>'}
+    </div>
+
+    ${f.noCost.length ? `
+    <div class="alert alert-warning mt-4" style="display:block">
+      <strong>⚠️ ${f.noCost.length} ${f.noCost.length === 1 ? 'vela no tiene' : 'velas no tienen'} costo cargado</strong> — su ganancia sale inflada. Ponle el costo en Inventario:
+      <div class="dash-chips">${f.noCost.map(pr => `<button class="cust-chip" onclick="navigate('inventory');setTimeout(()=>openProductModal(${pr.id}),400)">${escDash(pr.name)}</button>`).join('')}</div>
+    </div>` : ''}
+
+    <div class="grid-2 mt-4">
+      <div class="card">
+        <div class="card-header"><div class="card-title">⚠️ Stock bajo</div><a href="#" onclick="navigate('inventory')" class="btn btn-ghost btn-sm">Inventario</a></div>
+        <div id="low-stock-list"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">🕐 Últimas ventas</div><a href="#" onclick="navigate('sales')" class="btn btn-ghost btn-sm">Ver todo</a></div>
+        <div id="recent-sales-list"></div>
       </div>
     </div>
   `;
+  renderFinanceChart(f);
+  renderLowStock(lowStock);
+  renderRecentSales(recent);
 }
 
-function renderSalesChart(data, days) {
-  const ctx = document.getElementById('salesChart');
+async function editGoal(current) {
+  const v = prompt('Meta de ventas para el mes (en pesos, sin puntos):', current || '');
+  if (v === null) return;
+  try {
+    await API.dashGoal(parseInt(String(v).replace(/\D/g, '')) || 0);
+    toast('Meta guardada ✓', 'success');
+    loadDashboard();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function renderFinanceChart(f) {
+  const ctx = document.getElementById('financeChart');
   if (!ctx) return;
-
-  // Fill missing days with 0
-  const allDates = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    allDates.push(d.toISOString().split('T')[0]);
-  }
-  const dataMap = {};
-  data.forEach(d => { dataMap[d.date] = d.total; });
-  const labels = allDates.map(d => {
-    const dt = new Date(d + 'T12:00:00');
-    return dt.toLocaleDateString('es-VE', { day: 'numeric', month: 'short' });
-  });
-  const values = allDates.map(d => dataMap[d] || 0);
-
-  if (salesChart) salesChart.destroy();
-
-  const isDark = App.theme !== 'light';
-  const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
-  const textColor = isDark ? '#8f8fa3' : '#5c5c70';
-
-  salesChart = new Chart(ctx, {
-    type: 'line',
+  if (financeChart) financeChart.destroy();
+  const [y, m] = f.month.split('-').map(Number);
+  const days = new Date(y, m, 0).getDate();
+  const byDay = Object.fromEntries(f.daily.map(d => [Number(String(d.date).slice(8, 10)), d]));
+  const labels = Array.from({ length: days }, (_, i) => i + 1);
+  const css = getComputedStyle(document.documentElement);
+  const muted = css.getPropertyValue('--text-muted').trim() || '#8a7f80';
+  financeChart = new Chart(ctx, {
     data: {
       labels,
-      datasets: [{
-        data: values,
-        borderColor: '#62121D',
-        backgroundColor: 'rgba(98,18,29,0.08)',
-        borderWidth: 2,
-        pointRadius: 0,
-        pointHoverRadius: 5,
-        pointHoverBackgroundColor: '#62121D',
-        fill: true,
-        tension: 0.4,
-      }]
+      datasets: [
+        { type: 'bar', label: 'Ventas', data: labels.map(d => byDay[d]?.revenue || 0), backgroundColor: 'rgba(98,18,29,0.75)', borderRadius: 6, maxBarThickness: 18 },
+        { type: 'line', label: 'Ganancia', data: labels.map(d => byDay[d]?.profit || 0), borderColor: '#6E734D', backgroundColor: 'rgba(110,115,77,0.15)', tension: 0.35, pointRadius: 0, fill: true },
+      ],
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: isDark ? '#1a1a20' : '#fff',
-          borderColor: '#62121D',
-          borderWidth: 1,
-          titleColor: textColor,
-          bodyColor: isDark ? '#f2f2f5' : '#111',
-          padding: 10,
-          callbacks: {
-            title: items => items[0].label,
-            label: item => ` ${fmt(item.raw)}`,
-          }
-        }
-      },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: { color: textColor, maxTicksLimit: 8, font: { size: 11 } },
-          border: { display: false }
-        },
-        y: {
-          grid: { color: gridColor },
-          ticks: { color: textColor, font: { size: 11 }, callback: v => '$' + v },
-          border: { display: false }
-        }
-      }
-    }
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: muted, usePointStyle: true } }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt(c.parsed.y)}` } } },
+      scales: { x: { grid: { display: false }, ticks: { color: muted, maxTicksLimit: 10 } }, y: { ticks: { color: muted, callback: v => fmt(v) }, grid: { color: 'rgba(43,29,31,0.06)' } } },
+    },
   });
-}
-
-// Chart period buttons
-document.querySelectorAll('.chart-period-btn').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    document.querySelectorAll('.chart-period-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const days = parseInt(btn.dataset.days);
-    const data = await API.dashChart(days);
-    renderSalesChart(data, days);
-  });
-});
-
-function renderTopProducts(products) {
-  const el = document.getElementById('top-products-list');
-  if (!products.length) {
-    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div><p>Sin ventas registradas aún</p></div>';
-    return;
-  }
-  const max = products[0]?.revenue || 1;
-  el.innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:14px">
-      ${products.map((p, i) => `
-        <div>
-          <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:0.82rem">
-            <span><strong>${i + 1}.</strong> ${p.name}</span>
-            <span class="text-accent font-bold">${fmt(p.revenue)}</span>
-          </div>
-          <div style="background:var(--bg-hover);border-radius:4px;height:6px;overflow:hidden">
-            <div style="background:var(--accent);height:100%;width:${(p.revenue/max*100).toFixed(1)}%;border-radius:4px;transition:width 1s ease"></div>
-          </div>
-          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:3px">${p.units_sold} unidades • Ganancia: ${fmt(p.profit)}</div>
-        </div>
-      `).join('')}
-    </div>
-  `;
 }
 
 function renderRecentSales(sales) {
   const el = document.getElementById('recent-sales-list');
-  if (!sales.length) {
-    el.innerHTML = '<div class="empty-state" style="padding:40px"><div class="empty-icon">💳</div><p>Sin ventas registradas</p></div>';
-    return;
-  }
-  el.innerHTML = `
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Cliente</th>
-            <th>Productos</th>
-            <th>Total</th>
-            <th>Estado</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${sales.map(s => `
-            <tr>
-              <td>
-                <div style="font-weight:600;font-size:0.82rem">${s.customer_name || 'Cliente ocasional'}</div>
-                <div style="font-size:0.72rem;color:var(--text-muted)">${timeAgo(s.created_at)}</div>
-              </td>
-              <td style="font-size:0.78rem;color:var(--text-muted);max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.items || '—'}</td>
-              <td class="text-accent font-bold">${fmt(s.total)}</td>
-              <td>${paymentBadge(s.payment_status)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
+  if (!el) return;
+  if (!sales.length) { el.innerHTML = '<div class="empty-state" style="padding:30px"><p>Sin ventas registradas</p></div>'; return; }
+  el.innerHTML = sales.map(s => `
+    <div class="dash-row">
+      <div style="min-width:0"><strong>${escDash(s.customer_name || 'Cliente')}</strong><br>
+        <small style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escDash(s.items || '—')} · ${timeAgo(s.created_at)}</small></div>
+      <strong class="text-accent">${fmt(s.total)}</strong>
+    </div>`).join('');
 }
 
 function renderLowStock(products) {
   const el = document.getElementById('low-stock-list');
-  if (!products.length) {
-    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.82rem">✅ Todo el stock está bien</div>';
-    return;
-  }
+  if (!el) return;
+  if (!products.length) { el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.82rem">✅ Todo el stock está bien</div>'; return; }
   el.innerHTML = products.map(p => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);gap:10px">
-      <div style="min-width:0">
-        <div style="font-size:0.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
-        <div style="font-size:0.72rem;color:var(--text-muted)">${p.category || 'Sin categoría'}</div>
-      </div>
+    <div class="dash-row">
+      <div style="min-width:0"><strong>${escDash(p.name)}</strong><br><small>${escDash(p.category || 'Sin categoría')}</small></div>
       ${stockBadge(p.status, p.stock)}
-    </div>
-  `).join('');
-}
-
-function renderTopCustomers(customers) {
-  const el = document.getElementById('top-customers-list');
-  if (!customers.length) {
-    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.82rem">Sin clientes registrados</div>';
-    return;
-  }
-  el.innerHTML = customers.map((c, i) => `
-    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer"
-         onclick="openCustomerDetail(${c.id})">
-      <div style="font-weight:700;color:var(--text-muted);font-size:0.78rem;width:16px">${i + 1}</div>
-      <div class="user-avatar" style="width:32px;height:32px;font-size:0.75rem;${c.is_vip ? 'background:rgba(245,158,11,0.15);border-color:var(--warning);color:var(--warning)' : ''}">
-        ${getInitials(c.name)}
-      </div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:0.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-          ${c.name} ${c.is_vip ? '<span class="vip-star">⭐</span>' : ''}
-        </div>
-        <div style="font-size:0.72rem;color:var(--text-muted)">${c.purchase_count} compras</div>
-      </div>
-      <div class="text-accent font-bold" style="font-size:0.88rem">${fmt(c.total_spent)}</div>
-    </div>
-  `).join('');
-}
-
-function renderExpensesSummary(expenses, stats) {
-  const monthTotal = expenses?.monthTotal || 0;
-  const ventas = stats?.month?.total || 0;
-  const utilidad = ventas - monthTotal;
-  const byCategory = expenses?.byCategory || [];
-
-  // Tarjeta de gastos en stats-grid
-  const statsGrid = document.getElementById('stats-grid');
-  if (statsGrid && !document.getElementById('expense-stat-card')) {
-    const card = document.createElement('div');
-    card.id = 'expense-stat-card';
-    card.className = 'stat-card danger';
-    card.innerHTML = `
-      <span class="stat-icon">💸</span>
-      <div class="stat-label">Gastos del mes</div>
-      <div class="stat-value">${fmt(monthTotal)}</div>
-      <div class="stat-change ${utilidad >= 0 ? 'up' : 'down'}">
-        Utilidad neta: ${utilidad >= 0 ? '+' : ''}${fmt(utilidad)}
-      </div>
-    `;
-    statsGrid.appendChild(card);
-  }
-
-  // Sección Ventas vs Gastos
-  const container = document.getElementById('expense-summary-section');
-  if (!container) return;
-  container.innerHTML = `
-    <div class="card">
-      <div class="card-header">
-        <div>
-          <div class="card-title">💰 Ventas vs 💸 Gastos — Este mes</div>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="grid-2 mb-4">
-          <div class="report-card">
-            <div class="stat-label">Ventas del mes</div>
-            <div class="stat-value" style="color:var(--accent-light)">${fmt(ventas)}</div>
-          </div>
-          <div class="report-card">
-            <div class="stat-label">Gastos del mes</div>
-            <div class="stat-value" style="color:var(--danger)">${fmt(monthTotal)}</div>
-          </div>
-        </div>
-        <div class="report-card ${utilidad >= 0 ? 'success' : 'danger'}" style="margin-bottom:16px">
-          <div class="stat-label">Utilidad neta estimada</div>
-          <div class="stat-value">${utilidad >= 0 ? '+' : ''}${fmt(utilidad)}</div>
-        </div>
-        ${byCategory.length ? `
-        <div class="stat-label" style="margin-bottom:8px">Gastos por categoría</div>
-        ${byCategory.map(g => `
-          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-            <span>${g.category||'Sin categoría'}</span>
-            <span style="font-weight:600;color:var(--danger)">${fmt(g.total)}</span>
-          </div>
-        `).join('')}
-        ` : '<p style="color:var(--text-muted)">No hay gastos registrados este mes.</p>'}
-      </div>
-    </div>
-  `;
+    </div>`).join('');
 }

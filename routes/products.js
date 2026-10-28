@@ -52,7 +52,7 @@ router.get('/', async (req, res) => {
   try {
     const { search, category, status, country, admin, sort='name', order='ASC' } = req.query;
     const params=[]; let i=0;
-    let q=`SELECT p.*,c.name as category_name,c.icon as category_icon,c.color as category_color,s.name as supplier_name FROM products p LEFT JOIN categories c ON p.category_id=c.id LEFT JOIN suppliers s ON p.supplier_id=s.id WHERE 1=1`;
+    let q=`SELECT p.*,c.name as category_name,c.icon as category_icon,c.color as category_color,s.name as supplier_name,(SELECT COALESCE(json_agg(json_build_object('id',pp.id,'label',pp.label) ORDER BY pp.position, pp.id),'[]'::json) FROM product_photos pp WHERE pp.product_id=p.id) AS photos FROM products p LEFT JOIN categories c ON p.category_id=c.id LEFT JOIN suppliers s ON p.supplier_id=s.id WHERE 1=1`;
     if (search) { q+=` AND (p.name ILIKE $${++i} OR p.sku ILIKE $${i} OR p.description ILIKE $${i})`; params.push('%'+search+'%'); }
     if (category) { q+=` AND p.category_id=$${++i}`; params.push(category); }
     if (status)   { q+=` AND p.status=$${++i}`;      params.push(status); }
@@ -125,6 +125,46 @@ router.get('/top', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Más fotos por producto (otros colores) ──
+router.get('/photos/:photoId/image', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT mime,data FROM product_photos WHERE id=$1', [req.params.photoId]);
+    if (!rows[0]) return res.status(404).end();
+    res.set('Content-Type', rows[0].mime);
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    res.send(rows[0].data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/:id/photos', authMiddleware, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file || !/^image\//.test(req.file.mimetype)) return res.status(400).json({ error: 'Sube una imagen (JPG, PNG o WebP)' });
+    const { rows: c } = await pool.query('SELECT COUNT(*)::int n FROM product_photos WHERE product_id=$1', [req.params.id]);
+    if (c[0].n >= 12) return res.status(400).json({ error: 'Máximo 12 fotos extra por producto' });
+    const { rows } = await pool.query(
+      'INSERT INTO product_photos (product_id,mime,data,label,position) VALUES ($1,$2,$3,$4,(SELECT COALESCE(MAX(position),0)+1 FROM product_photos WHERE product_id=$1)) RETURNING id,label',
+      [req.params.id, req.file.mimetype, req.file.buffer, String(req.body.label || '').trim().slice(0, 40) || null]);
+    res.status(201).json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/photos/:photoId', authMiddleware, async (req, res) => {
+  try {
+    const { label, position } = req.body;
+    await pool.query('UPDATE product_photos SET label=COALESCE($1,label), position=COALESCE($2,position) WHERE id=$3',
+      [label !== undefined ? (String(label).trim().slice(0, 40) || '') : null, position !== undefined ? parseInt(position) : null, req.params.photoId]);
+    await pool.query("UPDATE product_photos SET label=NULL WHERE id=$1 AND label=''", [req.params.photoId]);
+    res.json({ message: 'Foto actualizada' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/photos/:photoId', authMiddleware, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM product_photos WHERE id=$1', [req.params.photoId]);
+    res.json({ message: 'Foto eliminada' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/:id/image', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT mime,data FROM product_images WHERE product_id=$1',[req.params.id]);
@@ -137,7 +177,7 @@ router.get('/:id/image', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const { rows } = await pool.query(`SELECT p.*,c.name as category_name,c.care_mode as category_care_mode,c.care_title as category_care_title,c.care_text as category_care_text,c.care_note as category_care_note,c.product_note as category_product_note,c.active as category_active,s.name as supplier_name FROM products p LEFT JOIN categories c ON p.category_id=c.id LEFT JOIN suppliers s ON p.supplier_id=s.id WHERE p.id=$1`,[req.params.id]);
+    const { rows } = await pool.query(`SELECT p.*,c.name as category_name,c.care_mode as category_care_mode,c.care_title as category_care_title,c.care_text as category_care_text,c.care_note as category_care_note,c.product_note as category_product_note,c.active as category_active,s.name as supplier_name,(SELECT COALESCE(json_agg(json_build_object('id',pp.id,'label',pp.label) ORDER BY pp.position, pp.id),'[]'::json) FROM product_photos pp WHERE pp.product_id=p.id) AS photos FROM products p LEFT JOIN categories c ON p.category_id=c.id LEFT JOIN suppliers s ON p.supplier_id=s.id WHERE p.id=$1`,[req.params.id]);
     if (!rows[0] || (rows[0].category_active === 0 && !isStaff(req))) return res.status(404).json({ error: 'Producto no encontrado' });
     const { rows: v } = await pool.query('SELECT * FROM product_variants WHERE product_id=$1',[rows[0].id]);
     const { rows: m } = await pool.query('SELECT * FROM stock_movements WHERE product_id=$1 ORDER BY created_at DESC LIMIT 10',[rows[0].id]);
@@ -160,6 +200,7 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
       [sku,name,description||'',category_id||null,supplier_id||null,parseFloat(cost_price)||0,parseFloat(sale_price)||0,parseFloat(price_eur)||0,parseFloat(compare_price)||0,parseFloat(compare_price_eur)||0,si,mi,st,null,country||'chile',(aroma||'').trim()||null,(options_label||'').trim().slice(0,40)||null,parseList(options)||[],parseList(allowed_aromas)||[],JSON.stringify(parseFormats(formats)||[]),pick_mode==='options'?'options':'aromas',cutoutOr(cutout,null)]);
     const pid=rows[0].id;
     if (req.file) await pool.query('UPDATE products SET image=$1 WHERE id=$2',[await saveProductImage(pid, req.file), pid]);
+    if (req.body.main_label !== undefined) await pool.query('UPDATE products SET main_label=$1 WHERE id=$2', [String(req.body.main_label || '').trim().slice(0, 40) || null, pid]);
     if (si>0) await pool.query('INSERT INTO stock_movements (product_id,type,quantity,notes) VALUES ($1,$2,$3,$4)',[pid,'purchase',si,'Stock inicial']);
     res.status(201).json({ id:pid, sku, message:'Producto creado' });
   } catch (err) { const msg = err.message.includes('products_sku_key') ? 'El SKU ingresado ya existe. Por favor usa un SKU diferente.' : err.message; res.status(500).json({ error: msg }); }
@@ -180,6 +221,7 @@ router.put('/:id', authMiddleware, upload.single('image'), async (req, res) => {
       const diff=parseInt(stock)-p.stock;
       await pool.query('INSERT INTO stock_movements (product_id,type,quantity,notes) VALUES ($1,$2,$3,$4)',[p.id,diff>0?'adjustment_in':'adjustment_out',Math.abs(diff),'Ajuste manual']);
     }
+    if (req.body.main_label !== undefined) await pool.query('UPDATE products SET main_label=$1 WHERE id=$2', [String(req.body.main_label || '').trim().slice(0, 40) || null, p.id]);
     res.json({ message:'Producto actualizado' });
   } catch (err) { const msg = err.message.includes('products_sku_key') ? 'El SKU ingresado ya existe. Por favor usa un SKU diferente.' : err.message; res.status(500).json({ error: msg }); }
 });

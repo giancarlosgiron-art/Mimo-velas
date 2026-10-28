@@ -37,6 +37,8 @@ const API = {
 
   // Dashboard
   dashStats()        { return this.get('/dashboard/stats'); },
+  dashFinance(month) { return this.get(`/dashboard/finance${month ? '?month=' + month : ''}`); },
+  dashGoal(goal)     { return this.put('/dashboard/goal', { goal }); },
   dashChart(days)    { return this.get(`/dashboard/chart?days=${days}`); },
   dashTopProducts()  { return this.get('/dashboard/top-products'); },
   dashRecentSales()  { return this.get('/dashboard/recent-sales'); },
@@ -59,6 +61,9 @@ const API = {
   site()                          { return this.get('/site'); },
   siteDefaults()                  { return this.get('/site/defaults'); },
   saveSite(key, data)             { return this.put(`/site/${key}`, data); },
+  addProductPhoto(id, file, label) { const fd = new FormData(); fd.append('image', file); if (label) fd.append('label', label); return this.post(`/products/${id}/photos`, fd); },
+  updateProductPhoto(pid, data)   { return this.put(`/products/photos/${pid}`, data); },
+  deleteProductPhoto(pid)         { return this.del(`/products/photos/${pid}`); },
   uploadSiteImage(file)           { const fd = new FormData(); fd.append('image', file); return this.post('/site/images', fd); },
   aromas()                        { return this.get('/aromas'); },
   toppings()                      { return this.get('/toppings?all=1'); },

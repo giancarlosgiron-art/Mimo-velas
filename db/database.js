@@ -94,6 +94,15 @@ async function initSchema() {
     ALTER TABLE products ADD COLUMN IF NOT EXISTS cutout TEXT;
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS contact_phone TEXT;
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method TEXT;
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMP;
+    ALTER TABLE sales ADD COLUMN IF NOT EXISTS order_id INTEGER;
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS main_label TEXT;
+    CREATE TABLE IF NOT EXISTS product_photos (
+      id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      mime TEXT NOT NULL, data BYTEA NOT NULL, label TEXT, position INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value JSONB NOT NULL);
     DELETE FROM order_items WHERE order_id NOT IN (SELECT id FROM orders);
     DELETE FROM notifications n WHERE n.link = '/orders' AND substring(n.title from '#([0-9]+)') IS NOT NULL
       AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.id = substring(n.title from '#([0-9]+)')::int);
@@ -178,7 +187,7 @@ async function initSchema() {
   }
 }
 
-initSchema().catch(err => console.error('Error DB:', err.message));
+pool.ready = initSchema().catch(err => console.error('Error DB:', err.message));
 
 pool.pool = pool;
 module.exports = pool;
