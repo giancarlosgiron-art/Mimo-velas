@@ -19,6 +19,7 @@ const PAGE_TITLES = {
   orders: 'Pedidos y Reservas',
   reports: 'Reportes',
   expenses: 'Gastos',
+  taller: 'Taller',
   site: 'Mi página',
 };
 
@@ -30,6 +31,7 @@ const HEADER_ACTIONS = {
   orders:    { text: '+ Pedido', action: 'openOrderModal' },
   reports:   { text: '📊 Generar', action: 'loadReports' },
   expenses:  { text: '+ Registrar gasto', action: 'openExpenseModal' },
+  taller:    { text: '+ Insumo', action: 'openSupplyModal' },
   site:      { text: 'Ver página ↗', action: 'openCatalogSite' },
 };
 
@@ -149,6 +151,7 @@ async function navigate(page) {
     case 'orders':    await loadOrders(); break;
     case 'reports':   await loadReports(); break;
     case 'expenses':  await loadExpenses(); break;
+    case 'taller':    await loadTaller(); break;
     case 'site':      await loadSite(); break;
   }
 }
@@ -235,6 +238,8 @@ async function loadNotifications() {
     updateBadge('badge-stock', lowStockCount);
     // Pedidos: cuántos están pendientes por revisar (igual que la tarjeta "Pendientes")
     API.orders({ status: 'pending' }).then(list => updateBadge('badge-orders', list.length)).catch(() => {});
+    // Taller: insumos en o bajo su mínimo
+    API.supplies().then(list => updateBadge('badge-taller', list.filter(s => s.stock <= 0 || (s.min_stock > 0 && s.stock <= s.min_stock)).length)).catch(() => {});
 
     const list = document.getElementById('notif-list');
     if (!notifications.length) {

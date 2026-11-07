@@ -117,6 +117,22 @@ const API = {
   createExpense(data)  { return this.post('/expenses', data); },
   deleteExpense(id)    { return this.del(`/expenses/${id}`); },
 
+  // Taller: insumos, costos por vela y producción
+  supplies()                  { return this.get('/taller/supplies'); },
+  createSupply(data)          { return this.post('/taller/supplies', data); },
+  updateSupply(id, data)      { return this.put(`/taller/supplies/${id}`, data); },
+  deleteSupply(id)            { return this.del(`/taller/supplies/${id}`); },
+  supplyMovements(id)         { return this.get(`/taller/supplies/${id}/movements`); },
+  supplyMovement(id, data)    { return this.post(`/taller/supplies/${id}/movement`, data); },
+  tallerSettings()            { return this.get('/taller/settings'); },
+  saveTallerSettings(data)    { return this.put('/taller/settings', data); },
+  recipes()                   { return this.get('/taller/recipes'); },
+  saveRecipe(pid, data)       { return this.put(`/taller/recipes/${pid}`, data); },
+  deleteRecipe(pid)           { return this.del(`/taller/recipes/${pid}`); },
+  productions()               { return this.get('/taller/production'); },
+  produce(data)               { return this.post('/taller/production', data); },
+  undoProduction(id)          { return this.del(`/taller/production/${id}`); },
+
   // Reports
   reportSummary(from, to) { return this.get(`/reports/summary?from=${from}&to=${to}`); },
   reportByCategory(from, to) { return this.get(`/reports/by-category?from=${from}&to=${to}`); },

@@ -34,6 +34,7 @@ app.use('/api/aromas',    require('./routes/aromas'));
 app.use('/api/site',      require('./routes/site'));
 app.use('/api/toppings',  require('./routes/toppings'));
 app.use('/api/web-orders', require('./routes/web-orders'));
+app.use('/api/taller',    require('./routes/taller'));
 
 // SPA fallback
 app.get('*', (req, res) => {

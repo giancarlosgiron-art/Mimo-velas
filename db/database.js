@@ -103,6 +103,29 @@ async function initSchema() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value JSONB NOT NULL);
+    -- Taller: insumos (cera, esencias, frascos…), sus movimientos, la receta de cada vela y las producciones
+    CREATE TABLE IF NOT EXISTS supplies (
+      id SERIAL PRIMARY KEY, name TEXT NOT NULL, kind TEXT DEFAULT 'otro', unit TEXT DEFAULT 'unid',
+      stock REAL DEFAULT 0, min_stock REAL DEFAULT 0, unit_cost REAL DEFAULT 0,
+      supplier TEXT, notes TEXT, max_pct REAL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS supply_movements (
+      id SERIAL PRIMARY KEY, supply_id INTEGER NOT NULL REFERENCES supplies(id) ON DELETE CASCADE,
+      type TEXT NOT NULL, quantity REAL NOT NULL, unit_cost REAL, total REAL, notes TEXT,
+      production_id INTEGER, user_id INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS product_recipes (
+      product_id INTEGER PRIMARY KEY REFERENCES products(id) ON DELETE CASCADE,
+      items JSONB DEFAULT '[]', fragrance_pct REAL DEFAULT 0, fragrance_supply_id INTEGER,
+      extra_cost REAL DEFAULT 0, labor_minutes REAL DEFAULT 0, auto_cost INTEGER DEFAULT 1,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS productions (
+      id SERIAL PRIMARY KEY, product_id INTEGER, product_name TEXT, quantity INTEGER NOT NULL,
+      fragrance_supply_id INTEGER, fragrance_name TEXT, cost_total REAL DEFAULT 0, added_to_stock INTEGER DEFAULT 1,
+      notes TEXT, user_id INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
     DELETE FROM order_items WHERE order_id NOT IN (SELECT id FROM orders);
     DELETE FROM notifications n WHERE n.link = '/orders' AND substring(n.title from '#([0-9]+)') IS NOT NULL
       AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.id = substring(n.title from '#([0-9]+)')::int);
