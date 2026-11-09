@@ -37,7 +37,7 @@ const SITE_SECTIONS = [
     { name: 'logo', type: 'toggle', label: 'Nieve sobre el logo mimo', hint: 'Una capita de nieve encima de las letras, arriba en el menú.' },
     { name: 'nieve', type: 'toggle', label: 'Nieve cayendo en la portada', hint: 'Copos que caen en el bloque principal y se van acumulando abajo, sobre la ola.' },
     { name: 'reno', type: 'toggle', label: 'Reno asomándose en la portada', hint: 'Un renito con el gorro de mimo que se asoma en la esquina de abajo a la izquierda. Parpadea y, si lo tocan, da un saltito.' },
-    { name: 'sonido', type: 'toggle', label: 'Sonido del reno', hint: 'Al tocar el reno suena un cascabel con "Jingle Bells" (creado en la página, sin derechos de autor). Solo suena si lo tocan.' },
+    { name: 'sonido', type: 'toggle', label: 'Sonido del reno', hint: 'Al tocar el reno suenan cascabeles de trineo (creados en la página, sin derechos de autor). Solo suena si lo tocan.' },
   ]},
   { key: 'banners', title: 'Banners especiales', icon: '🎄', desc: 'Franja debajo de la portada para ocasiones especiales (Navidad, Día de la Madre…). Solo se muestran los activos.', fields: [
     { name: 'items', type: 'group', label: 'Banners', addLabel: '+ Agregar banner', itemLabel: 'Banner', subfields: [
