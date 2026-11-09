@@ -1,6 +1,7 @@
 // Pedido entregado = venta registrada: así el dashboard muestra ingresos, costo de las velas y ganancia reales.
 // Cada pedido entregado tiene a lo más una venta (sales.order_id). Si el pedido deja de estar entregado, la venta se anula.
 const pool = require('../db/database');
+const { trackStock, statusFor } = require('./stockMode');
 
 function paymentKey(text) {
   const t = String(text || '').toLowerCase();
@@ -13,7 +14,7 @@ async function adjustStock(client, productId, delta, saleId, note) {
   const { rows } = await client.query('SELECT stock, min_stock FROM products WHERE id=$1', [productId]);
   if (!rows[0]) return;
   const ns = Math.max(0, rows[0].stock + delta);
-  const st = ns === 0 ? 'out_of_stock' : ns <= rows[0].min_stock ? 'low_stock' : 'available';
+  const st = statusFor(await trackStock(client), ns, rows[0].min_stock);
   await client.query('UPDATE products SET stock=$1, status=$2 WHERE id=$3', [ns, st, productId]);
   await client.query('INSERT INTO stock_movements (product_id,type,quantity,reference_id,notes) VALUES ($1,$2,$3,$4,$5)',
     [productId, delta < 0 ? 'sale' : 'adjustment', delta, saleId, note]);

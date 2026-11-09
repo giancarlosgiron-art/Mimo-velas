@@ -122,7 +122,7 @@ function renderPOS() {
 }
 
 function posProductCard(p) {
-  const disabled = p.stock === 0;
+  const disabled = App.trackStock && p.stock === 0;
   return `
     <div class="product-card ${disabled ? 'opacity-50' : ''}"
          onclick="${disabled ? '' : `addToCart(${p.id})`}"
@@ -151,11 +151,11 @@ function filterPOSProducts() {
 
 function addToCart(productId) {
   const product = posProducts.find(p => p.id === productId);
-  if (!product || product.stock === 0) return;
+  if (!product || (App.trackStock && product.stock === 0)) return;
 
   const existing = cart.find(i => i.product_id === productId);
   if (existing) {
-    if (existing.quantity >= product.stock) {
+    if (App.trackStock && existing.quantity >= product.stock) {
       toast(`Máximo disponible: ${product.stock}`, 'warning');
       return;
     }

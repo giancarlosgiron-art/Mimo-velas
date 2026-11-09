@@ -34,6 +34,23 @@ function setInvCurrency(curr) {
   document.getElementById('inv-currency-eur').style.opacity = curr === 'eur' ? '1' : '0.5';
   if (typeof invProducts !== 'undefined') renderInventoryStats(invProducts);
 }
+// Trabajo a pedido ↔ llevar stock: con stock, las velas en 0 salen como agotadas y hay avisos de stock bajo
+async function toggleStockMode(e) {
+  e?.preventDefault();
+  const next = !App.trackStock;
+  const msg = next
+    ? '¿Empezar a llevar stock de velas?\n\nLas velas con stock 0 se mostrarán como AGOTADAS en el catálogo, no se podrán vender en Nueva venta y tendrás avisos de stock bajo.'
+    : '¿Trabajar a pedido?\n\nEl stock queda solo como referencia: nada sale agotado ni con avisos.';
+  if (!confirm(msg)) return;
+  try {
+    await API.put('/site/inventario', { track_stock: next });
+    App.trackStock = next;
+    toast(next ? 'Ahora llevas stock de velas' : 'Modo a pedido activado');
+    await loadInventory();
+    loadNotifications();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
 function renderInventoryStats(products) {
   const total = products.length;
   const available = products.filter(p => p.status === 'available').length;
@@ -60,11 +77,19 @@ function renderInventoryStats(products) {
       <div class="stat-label">Disponibles</div>
       <div class="stat-value">${available}</div>
     </div>
+    ${App.trackStock ? `
     <div class="stat-card warning">
       <span class="stat-icon">⚠️</span>
       <div class="stat-label">Stock bajo</div>
       <div class="stat-value">${low}</div>
-    </div>
+      <div class="stat-change neutral"><a href="#" onclick="toggleStockMode(event)">Cambiar a trabajo a pedido</a></div>
+    </div>` : `
+    <div class="stat-card">
+      <span class="stat-icon">📋</span>
+      <div class="stat-label">Trabajo a pedido</div>
+      <div class="stat-value" style="font-size:1.1rem">Activado</div>
+      <div class="stat-change neutral">El stock es solo referencia · <a href="#" onclick="toggleStockMode(event)">Llevar stock</a></div>
+    </div>`}
     <div class="stat-card info">
       <span class="stat-icon">💰</span>
       <div class="stat-label">Valor del inventario</div>
@@ -157,7 +182,7 @@ function productRow(p) {
           ${p.margin}%
         </span>
       </td>
-      <td><strong>${p.stock}</strong> <span style="color:var(--text-muted);font-size:0.75rem">/ min ${p.min_stock}</span></td>
+      <td><strong>${p.stock}</strong>${App.trackStock ? ` <span style="color:var(--text-muted);font-size:0.75rem">/ min ${p.min_stock}</span>` : ''}</td>
       <td>${stockBadge(p.status, p.stock)}</td>
       <td onclick="event.stopPropagation()">
         <div style="display:flex;gap:4px">

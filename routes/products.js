@@ -3,6 +3,7 @@ const router = express.Router();
 const path = require('path');
 const pool = require('../db/database').pool || require('../db/database');
 const { upload, saveProductImage } = require('../middleware/upload');
+const { trackStock, statusFor } = require('../services/stockMode');
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = require('../middleware/secret');
 const { authMiddleware } = require('../middleware/auth');
@@ -195,7 +196,7 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
     const n = nums.length ? Math.max(...nums)+1 : 1;
     const sku='MIMO-'+String(n).padStart(3,'0');
     const si=parseInt(stock)||0, mi=parseInt(min_stock)||5;
-    const st=si===0?'out_of_stock':si<=mi?'low_stock':'available';
+    const st=statusFor(await trackStock(),si,mi);
     const { rows } = await pool.query(`INSERT INTO products (sku,name,description,category_id,supplier_id,cost_price,sale_price,price_eur,compare_price,compare_price_eur,stock,min_stock,status,image,country,aroma,options_label,options,allowed_aromas,formats,pick_mode,cutout) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) RETURNING id`,
       [sku,name,description||'',category_id||null,supplier_id||null,parseFloat(cost_price)||0,parseFloat(sale_price)||0,parseFloat(price_eur)||0,parseFloat(compare_price)||0,parseFloat(compare_price_eur)||0,si,mi,st,null,country||'chile',(aroma||'').trim()||null,(options_label||'').trim().slice(0,40)||null,parseList(options)||[],parseList(allowed_aromas)||[],JSON.stringify(parseFormats(formats)||[]),pick_mode==='options'?'options':'aromas',cutoutOr(cutout,null)]);
     const pid=rows[0].id;
@@ -213,7 +214,7 @@ router.put('/:id', authMiddleware, upload.single('image'), async (req, res) => {
     const p=rows[0];
     const { name, description, category_id, supplier_id, cost_price, sale_price, price_eur, compare_price, compare_price_eur, stock, min_stock, country, aroma, options_label, options, allowed_aromas, formats, pick_mode, cutout, sku: skuInput } = req.body;
     const ns=stock!==undefined?parseInt(stock):p.stock, nm=min_stock!==undefined?parseInt(min_stock):p.min_stock;
-    const st=ns===0?'out_of_stock':ns<=nm?'low_stock':'available';
+    const st=statusFor(await trackStock(),ns,nm);
     const img=req.file ? await saveProductImage(p.id, req.file) : p.image;
     await pool.query(`UPDATE products SET name=$1,description=$2,category_id=$3,supplier_id=$4,cost_price=$5,sale_price=$6,price_eur=$7,compare_price=$8,compare_price_eur=$9,stock=$10,min_stock=$11,status=$12,image=$13,country=$14,sku=$16,aroma=$17,options_label=$18,options=$19,allowed_aromas=$20,formats=$21,pick_mode=$22,cutout=$23 WHERE id=$15`,
       [name||p.name,description??p.description,category_id??p.category_id,supplier_id??p.supplier_id,numOr(cost_price,p.cost_price),numOr(sale_price,p.sale_price),numOr(price_eur,p.price_eur),numOr(compare_price,p.compare_price),numOr(compare_price_eur,p.compare_price_eur),ns,nm,st,img,country||p.country,req.params.id,skuInput!==undefined&&skuInput!==''?skuInput:p.sku,aroma!==undefined?((aroma||'').trim()||null):p.aroma,options_label!==undefined?((options_label||'').trim().slice(0,40)||null):p.options_label,parseList(options)??p.options,parseList(allowed_aromas)??p.allowed_aromas,JSON.stringify(parseFormats(formats)??p.formats??[]),pick_mode!==undefined?(pick_mode==='options'?'options':'aromas'):(p.pick_mode||'aromas'),cutoutOr(cutout,p.cutout)]);

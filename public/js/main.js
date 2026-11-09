@@ -9,7 +9,12 @@ const App = {
   currentPage: 'dashboard',
   user: null,
   theme: localStorage.getItem('mimo_theme') || 'light',
+  trackStock: false, // a pedido: el stock de velas es solo referencia (se cambia en Inventario)
 };
+
+async function loadStockMode() {
+  try { const s = await API.get('/site'); App.trackStock = !!s.inventario?.track_stock; } catch {}
+}
 
 const PAGE_TITLES = {
   dashboard: 'Dashboard',
@@ -103,6 +108,7 @@ async function showApp() {
   }
 
   // Load initial page & notifications
+  await loadStockMode();
   await Promise.all([navigate('dashboard'), loadNotifications()]);
 
   // Hide loading
@@ -238,7 +244,7 @@ async function loadNotifications() {
 
     // Update badges
     const lowStockCount = notifications.filter(n => n.type === 'warning' && n.link === '/inventory').length;
-    updateBadge('badge-stock', lowStockCount);
+    updateBadge('badge-stock', App.trackStock ? lowStockCount : 0);
     // Pedidos: cuántos están pendientes por revisar (igual que la tarjeta "Pendientes")
     API.orders({ status: 'pending' }).then(list => updateBadge('badge-orders', list.length)).catch(() => {});
     // Taller: insumos en o bajo su mínimo
@@ -316,6 +322,8 @@ function getInitials(name) {
 }
 
 function stockBadge(status, stock) {
+  // A pedido: sin alarmas, solo se muestra lo que hay hecho
+  if (!App.trackStock) return stock > 0 ? `<span class="badge badge-muted">${stock} hecha${stock !== 1 ? 's' : ''}</span>` : `<span class="badge badge-muted">A pedido</span>`;
   if (status === 'out_of_stock' || stock === 0) return `<span class="badge badge-danger">Agotado</span>`;
   if (status === 'low_stock' || stock <= 5) return `<span class="badge badge-warning">⚠️ Stock bajo (${stock})</span>`;
   return `<span class="badge badge-success">${stock} disponibles</span>`;

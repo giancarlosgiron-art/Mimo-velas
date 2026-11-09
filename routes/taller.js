@@ -4,6 +4,7 @@ const router = express.Router();
 const pool = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
 const C = require('../services/costing');
+const { trackStock, statusFor } = require('../services/stockMode');
 router.use(authMiddleware);
 
 const KINDS = ['cera', 'esencia', 'frasco', 'mecha', 'colorante', 'decoracion', 'empaque', 'otro'];
@@ -280,7 +281,7 @@ async function moveProductStock(db, productId, delta, note, refId) {
   const { rows } = await db.query('SELECT stock, min_stock FROM products WHERE id=$1', [productId]);
   if (!rows[0]) return;
   const ns = Math.max(0, n(rows[0].stock) + delta);
-  const st = ns === 0 ? 'out_of_stock' : ns <= n(rows[0].min_stock) ? 'low_stock' : 'available';
+  const st = statusFor(await trackStock(db), ns, n(rows[0].min_stock));
   await db.query('UPDATE products SET stock=$1, status=$2 WHERE id=$3', [ns, st, productId]);
   await db.query('INSERT INTO stock_movements (product_id,type,quantity,reference_id,notes) VALUES ($1,$2,$3,$4,$5)',
     [productId, delta > 0 ? 'production' : 'adjustment', delta, refId, note]);

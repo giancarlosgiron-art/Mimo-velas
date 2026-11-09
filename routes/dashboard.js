@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { trackStock } = require('../services/stockMode');
 const pool = require('../db/database').pool || require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
 router.use(authMiddleware);
@@ -16,7 +17,8 @@ router.get('/stats', async (req, res) => {
     const growth = pm2.total>0?(((mo.total-pm2.total)/pm2.total)*100).toFixed(1):100;
     const { rows:[pr] } = await pool.query(`SELECT COALESCE(SUM((si.unit_price-si.cost_price)*si.quantity),0) as profit FROM sale_items si JOIN sales s ON si.sale_id=s.id WHERE DATE(s.created_at)>=$1 AND s.payment_status!='cancelled'`,[ms]);
     const { rows:[{c:po}] } = await pool.query(`SELECT COUNT(*) as c FROM orders WHERE status IN ('pending','confirmed')`);
-    const { rows:[{c:ls}] } = await pool.query(`SELECT COUNT(*) as c FROM products WHERE stock<=min_stock AND stock>0`);
+    const { rows:[{c:ls}] } = await trackStock()
+      ? await pool.query(`SELECT COUNT(*) as c FROM products WHERE stock<=min_stock AND stock>0`) : { rows: [{ c: 0 }] };
     const { rows:[{c:os}] } = await pool.query(`SELECT COUNT(*) as c FROM products WHERE stock=0`);
     const { rows:[{c:tp}] } = await pool.query(`SELECT COUNT(*) as c FROM products`);
     const { rows:[{c:tc}] } = await pool.query(`SELECT COUNT(*) as c FROM customers`);
@@ -54,6 +56,7 @@ router.get('/recent-sales', async (req, res) => {
 
 router.get('/low-stock', async (req, res) => {
   try {
+    if (!(await trackStock())) return res.json([]); // trabajo a pedido: nada es urgente
     const { rows } = await pool.query(`SELECT p.id,p.name,p.sku,p.stock,p.min_stock,p.status,c.name as category FROM products p LEFT JOIN categories c ON p.category_id=c.id WHERE p.stock<=p.min_stock ORDER BY p.stock ASC LIMIT 8`);
     res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }

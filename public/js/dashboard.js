@@ -117,11 +117,11 @@ function renderDashboard(f, lowStock, recent) {
       <div class="dash-chips">${f.noCost.map(pr => `<button class="cust-chip" onclick="navigate('inventory');setTimeout(()=>openProductModal(${pr.id}),400)">${escDash(pr.name)}</button>`).join('')}</div>
     </div>` : ''}
 
-    <div class="grid-2 mt-4">
-      <div class="card">
+    <div class="${App.trackStock ? 'grid-2' : ''} mt-4">
+      ${App.trackStock ? `<div class="card">
         <div class="card-header"><div class="card-title">⚠️ Stock bajo</div><a href="#" onclick="navigate('inventory')" class="btn btn-ghost btn-sm">Inventario</a></div>
         <div id="low-stock-list"></div>
-      </div>
+      </div>` : ''}
       <div class="card">
         <div class="card-header"><div class="card-title">🕐 Últimas ventas</div><a href="#" onclick="navigate('sales')" class="btn btn-ghost btn-sm">Ver todo</a></div>
         <div id="recent-sales-list"></div>

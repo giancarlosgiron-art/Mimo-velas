@@ -122,6 +122,8 @@ const DEFAULTS = {
     max_toppings: '5',
     note: 'Los toppings son decorativos y no tienen aroma. Vela decorativa, no comestible.',
   },
+  // Trabajo a pedido: el stock es solo referencia (se cambia en Inventario)
+  inventario: { track_stock: false },
   pagos: {
     // Medios de pago que el cliente elige en el carrito (llegan al WhatsApp y al panel)
     enabled: true,
@@ -226,6 +228,7 @@ router.put('/:key', authMiddleware, async (req, res) => {
        ON CONFLICT (key) DO UPDATE SET data = EXCLUDED.data, updated_by = EXCLUDED.updated_by, updated_at = CURRENT_TIMESTAMP`,
       [key, JSON.stringify(data), req.user.name]
     );
+    if (key === 'inventario') await require('../services/stockMode').refreshStatuses();
     res.json(data);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

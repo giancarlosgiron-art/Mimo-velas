@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { trackStock, statusFor } = require('../services/stockMode');
 const pool = require('../db/database').pool || require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
 router.use(authMiddleware);
@@ -37,11 +38,12 @@ router.post('/', async (req, res) => {
   try {
     const { customer_id, items, discount, payment_method, amount_paid, notes } = req.body;
     if (!items||items.length===0) return res.status(400).json({ error: 'Se requiere al menos un producto' });
+    const tracking = await trackStock(client); // a pedido: se puede vender aunque no haya velas hechas
     for (const item of items) {
       if (item.product_id) {
         const { rows } = await client.query('SELECT stock,name FROM products WHERE id=$1',[item.product_id]);
         if (!rows[0]) return res.status(400).json({ error: 'Producto no encontrado' });
-        if (rows[0].stock<item.quantity) return res.status(400).json({ error: 'Stock insuficiente para: '+rows[0].name });
+        if (tracking && rows[0].stock<item.quantity) return res.status(400).json({ error: 'Stock insuficiente para: '+rows[0].name });
       }
     }
     const subtotal = items.reduce((s,i)=>s+(i.unit_price*i.quantity),0);
@@ -64,13 +66,14 @@ router.post('/', async (req, res) => {
       if (item.product_id) {
         const { rows: pr } = await client.query('SELECT stock,min_stock,name FROM products WHERE id=$1',[item.product_id]);
         if (pr[0]) {
-          const ns=pr[0].stock-item.quantity;
-          const st=ns===0?'out_of_stock':ns<=pr[0].min_stock?'low_stock':'available';
+          const track=await trackStock(client);
+          const ns=Math.max(0,pr[0].stock-item.quantity);
+          const st=statusFor(track,ns,pr[0].min_stock);
           await client.query('UPDATE products SET stock=$1,status=$2 WHERE id=$3',[ns,st,item.product_id]);
           await client.query('INSERT INTO stock_movements (product_id,type,quantity,reference_id,notes) VALUES ($1,$2,$3,$4,$5)',
             [item.product_id,'sale',-item.quantity,saleId,'Venta #'+saleId]);
-          if (ns<=pr[0].min_stock&&ns>0) await client.query('INSERT INTO notifications (type,title,message,link) VALUES ($1,$2,$3,$4)',['warning','Stock bajo: '+pr[0].name,'Solo '+ns+' unidades restantes','/inventory']);
-          if (ns===0) await client.query('INSERT INTO notifications (type,title,message,link) VALUES ($1,$2,$3,$4)',['danger','Agotado: '+pr[0].name,'Producto sin stock','/inventory']);
+          if (track&&ns<=pr[0].min_stock&&ns>0) await client.query('INSERT INTO notifications (type,title,message,link) VALUES ($1,$2,$3,$4)',['warning','Stock bajo: '+pr[0].name,'Solo '+ns+' unidades restantes','/inventory']);
+          if (track&&ns===0) await client.query('INSERT INTO notifications (type,title,message,link) VALUES ($1,$2,$3,$4)',['danger','Agotado: '+pr[0].name,'Producto sin stock','/inventory']);
         }
       }
     }
@@ -97,7 +100,7 @@ router.delete('/:id', async (req, res) => {
       const { rows: pr } = await client.query('SELECT stock,min_stock FROM products WHERE id=$1',[item.product_id]);
       if (!pr[0]) continue;
       const ns=pr[0].stock+item.quantity;
-      const st=ns===0?'out_of_stock':ns<=pr[0].min_stock?'low_stock':'available';
+      const st=statusFor(await trackStock(client),ns,pr[0].min_stock);
       await client.query('UPDATE products SET stock=$1,status=$2 WHERE id=$3',[ns,st,item.product_id]);
       await client.query('INSERT INTO stock_movements (product_id,type,quantity,reference_id,notes) VALUES ($1,$2,$3,$4,$5)',
         [item.product_id,'adjustment',item.quantity,sale.id,'Anulacion venta #'+sale.id]);
