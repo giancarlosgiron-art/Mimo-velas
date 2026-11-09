@@ -36,6 +36,7 @@ const SITE_SECTIONS = [
     { name: 'enabled', type: 'toggle', label: 'Modo Navidad encendido' },
     { name: 'logo', type: 'toggle', label: 'Nieve sobre el logo mimo', hint: 'Una capita de nieve encima de las letras, arriba en el menú.' },
     { name: 'nieve', type: 'toggle', label: 'Nieve cayendo en la portada', hint: 'Copos que caen en el bloque principal y se van acumulando abajo, sobre la ola.' },
+    { name: 'luces', type: 'toggle', label: 'Luces navideñas en "Compra por categoría"', hint: 'Un cable con ampolletas de colores colgando sobre el título, que se encienden en secuencia.' },
     { name: 'reno', type: 'toggle', label: 'Reno asomándose en la portada', hint: 'Un renito con el gorro de mimo que se asoma en la esquina de abajo a la izquierda. Parpadea y, si lo tocan, da un saltito.' },
     { name: 'sonido', type: 'toggle', label: 'Sonido del reno', hint: 'Suena solo cuando alguien toca al reno. Los sonidos se crean en la página: no tienen derechos de autor.' },
     { name: 'sonido_tipo', type: 'sound', label: 'Qué sonido hace el reno', hint: 'Toca ▶ para escucharlo aquí mismo y elige el que más te guste.' },
