@@ -1339,3 +1339,88 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .inv-hidden .product-image img, .inv-hidden .product-image > span:not(.inv-visible) { opacity: 0.4; filter: grayscale(0.6); }
 tr.inv-hidden td { opacity: 0.55; }
 tr.inv-hidden td:last-child { opacity: 1; }
+
+/* ── Mimito (asesor de voz) ─────────────────────────────── */
+#mm-fab {
+  position: fixed; right: 22px; bottom: 22px; z-index: 900;
+  width: 58px; height: 58px; border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--mimo-borgona); color: var(--mimo-crema);
+  display: grid; place-items: center;
+  box-shadow: 0 10px 28px rgba(98,18,29,.35), inset 0 0 0 3px rgba(240,238,233,.18);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+#mm-fab:hover { transform: translateY(-2px) scale(1.04); }
+#mm-fab svg { width: 22px; height: 34px; fill: currentColor; }
+#mm-fab.mm-awake::after {
+  content: ''; position: absolute; inset: -5px; border-radius: 50%;
+  border: 2px solid var(--mimo-verde); opacity: .7;
+}
+#mm-fab[data-state="listening"] svg, #mm-fab[data-state="thinking"] svg, #mm-fab[data-state="speaking"] svg { animation: mm-flicker 1s ease-in-out infinite; }
+body.mm-open #mm-fab { display: none; }
+@keyframes mm-flicker { 0%,100% { transform: scale(1) rotate(-2deg); } 50% { transform: scale(1.12, .94) rotate(2deg); } }
+
+#mm-panel {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 950;
+  width: min(430px, 100vw); display: flex; flex-direction: column;
+  background: var(--bg-surface); color: var(--text-primary);
+  border-left: 1px solid var(--border-strong);
+  box-shadow: -18px 0 50px rgba(43,29,31,.16);
+  font-family: var(--font-body);
+}
+#mm-panel[hidden] { display: none; }
+@media (min-width: 1100px) { body.mm-open .main-content { margin-right: 430px; } }
+
+.mm-head {
+  display: flex; align-items: center; gap: 10px; padding: 14px 14px 14px 16px;
+  background: var(--mimo-borgona); color: var(--mimo-crema);
+}
+.mm-flame { width: 34px; height: 34px; border-radius: 50%; background: rgba(240,238,233,.14); display: grid; place-items: center; flex: none; }
+.mm-flame svg { width: 13px; height: 20px; fill: var(--mimo-crema); }
+#mm-panel[data-state="listening"] .mm-flame svg, #mm-panel[data-state="thinking"] .mm-flame svg, #mm-panel[data-state="speaking"] .mm-flame svg { animation: mm-flicker 1s ease-in-out infinite; }
+.mm-title { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
+.mm-title b { font-family: var(--font-display); font-size: 1.25rem; font-weight: 600; }
+.mm-title span { font-size: .75rem; opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mm-chip {
+  border: 1px solid rgba(240,238,233,.4); background: transparent; color: inherit;
+  border-radius: 999px; padding: 5px 10px; font: 600 .7rem var(--font-body); cursor: pointer; white-space: nowrap;
+}
+.mm-chip[aria-pressed="true"] { background: var(--mimo-crema); color: var(--mimo-borgona); border-color: var(--mimo-crema); }
+.mm-icon { background: transparent; border: 0; color: inherit; font-size: 1.05rem; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; }
+.mm-icon:hover { background: rgba(240,238,233,.14); }
+
+#mm-log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.mm-hello { color: var(--text-secondary); font-size: .9rem; line-height: 1.5; }
+.mm-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.mm-chips button {
+  border: 1px solid var(--border-strong); background: var(--bg-card); color: var(--text-primary);
+  border-radius: 999px; padding: 7px 12px; font: 500 .8rem var(--font-body); cursor: pointer;
+}
+.mm-chips button:hover { border-color: var(--accent); color: var(--accent); }
+.mm-msg { max-width: 92%; padding: 10px 13px; border-radius: 16px; font-size: .9rem; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+.mm-you { align-self: flex-end; background: var(--mimo-borgona); color: var(--mimo-crema); border-bottom-right-radius: 5px; }
+.mm-mimi { align-self: flex-start; background: var(--bg-card); border: 1px solid var(--border); border-bottom-left-radius: 5px; }
+.mm-err { align-self: stretch; background: rgba(183,121,31,.12); color: var(--text-primary); font-size: .82rem; }
+.mm-screen { position: relative; margin: 8px 0 4px; padding: 12px 12px 10px; border-radius: 12px; background: var(--bg-surface); border: 1px dashed var(--border-strong); white-space: pre-wrap; }
+.mm-copy { float: right; margin: -2px -2px 6px 8px; border: 0; border-radius: 999px; padding: 4px 10px; background: var(--mimo-borgona); color: var(--mimo-crema); font: 700 .65rem var(--font-body); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.mm-table { overflow-x: auto; white-space: normal; }
+.mm-msg table { border-collapse: collapse; font-size: .78rem; margin: 6px 0; }
+.mm-msg th, .mm-msg td { padding: 4px 8px; border-bottom: 1px solid var(--border); text-align: left; }
+#mm-interim { min-height: 0; padding: 0 16px; font-size: .82rem; color: var(--text-muted); font-style: italic; }
+#mm-interim:not(:empty) { padding-bottom: 6px; }
+
+#mm-form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border); background: var(--bg-surface); }
+#mm-text { flex: 1; min-width: 0; border: 1px solid var(--border-strong); background: var(--bg-input); color: var(--text-primary); border-radius: 999px; padding: 10px 14px; font: 400 .9rem var(--font-body); }
+#mm-text:focus { outline: none; border-color: var(--accent); }
+#mm-mic, #mm-send { flex: none; width: 42px; height: 42px; border-radius: 50%; border: 0; cursor: pointer; font-size: 1rem; }
+#mm-mic { background: var(--bg-card); border: 1px solid var(--border-strong); }
+#mm-send { background: var(--mimo-borgona); color: var(--mimo-crema); }
+#mm-panel[data-state="listening"] #mm-mic { background: var(--mimo-borgona); animation: mm-pulse 1.2s ease-out infinite; }
+#mm-panel[data-state="speaking"] #mm-mic, #mm-panel[data-state="thinking"] #mm-mic { background: var(--mimo-rosa); }
+@keyframes mm-pulse { 0% { box-shadow: 0 0 0 0 rgba(98,18,29,.45); } 100% { box-shadow: 0 0 0 14px rgba(98,18,29,0); } }
+
+@media (max-width: 768px) {
+  #mm-fab { right: 16px; bottom: 84px; width: 52px; height: 52px; }
+  #mm-panel { left: 0; width: auto; border-left: 0; }
+  .mm-chip { padding: 5px 8px; }
+}
+@media (prefers-reduced-motion: reduce) { #mm-fab svg, .mm-flame svg, #mm-mic { animation: none !important; } }
