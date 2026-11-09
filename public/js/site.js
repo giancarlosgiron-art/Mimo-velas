@@ -32,6 +32,12 @@ const SITE_SECTIONS = [
     { name: 'font_body',    type: 'font', label: 'Tipografía de textos',  options: BODY_FONTS },
     { name: 'motion', type: 'toggle', label: 'Animaciones y efectos en movimiento', hint: 'Cinta en movimiento, burbujas flotando, velas que rotan…' },
   ]},
+  { key: 'navidad', title: 'Navidad', icon: '❄️', desc: 'Pon la página en modo navideño. Lo enciendes en diciembre y lo apagas en enero; queda guardado para el próximo año.', fields: [
+    { name: 'enabled', type: 'toggle', label: 'Modo Navidad encendido' },
+    { name: 'logo', type: 'toggle', label: 'Nieve sobre el logo mimo', hint: 'Una capita de nieve encima de las letras, arriba en el menú.' },
+    { name: 'nieve', type: 'toggle', label: 'Nieve en el borde de la portada', hint: 'Nieve acumulada arriba del bloque principal, que gotea como cera, con destellos de escarcha.' },
+    { name: 'esferas', type: 'toggle', label: 'Esferas de vidrio colgando', hint: 'Esferas en las esquinas de la portada que se mecen y se balancean al tocarlas. Una lleva el fueguito de mimo.' },
+  ]},
   { key: 'banners', title: 'Banners especiales', icon: '🎄', desc: 'Franja debajo de la portada para ocasiones especiales (Navidad, Día de la Madre…). Solo se muestran los activos.', fields: [
     { name: 'items', type: 'group', label: 'Banners', addLabel: '+ Agregar banner', itemLabel: 'Banner', subfields: [
       { name: 'active', type: 'toggle', label: 'Activo (se muestra en la página)' },
