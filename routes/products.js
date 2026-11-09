@@ -61,7 +61,7 @@ router.get('/', async (req, res) => {
     if (country)  { q+=` AND (LOWER(p.country)=LOWER($${++i}) OR p.country='both')`; params.push(country); }
     // Categorías apagadas (Mi página → Categorías): sus productos no se ven en la página pública
     const staff = isStaff(req);
-    if (!staff) q+=` AND (c.id IS NULL OR COALESCE(c.active,1)=1)`;
+    if (!staff) q+=` AND (c.id IS NULL OR COALESCE(c.active,1)=1) AND COALESCE(p.visible,1)=1`;
     const sc={name:'p.name',price:'p.sale_price',stock:'p.stock',created:'p.created_at'};
     q+=` ORDER BY ${sc[sort]||'p.name'} ${order==='DESC'?'DESC':'ASC'}`;
     const { rows } = await pool.query(q, params);
@@ -121,7 +121,7 @@ router.get('/top', async (req, res) => {
   try {
     const { rows } = await pool.query(`SELECT p.id,p.name,p.image,p.sku,p.sale_price,c.name as category_name,SUM(si.quantity)::int as quantity
       FROM sale_items si JOIN products p ON p.id=si.product_id LEFT JOIN categories c ON p.category_id=c.id
-      WHERE p.status != 'out_of_stock' AND (c.id IS NULL OR COALESCE(c.active,1)=1) GROUP BY p.id,c.name ORDER BY quantity DESC LIMIT 8`);
+      WHERE p.status != 'out_of_stock' AND COALESCE(p.visible,1)=1 AND (c.id IS NULL OR COALESCE(c.active,1)=1) GROUP BY p.id,c.name ORDER BY quantity DESC LIMIT 8`);
     res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -176,10 +176,19 @@ router.get('/:id/image', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Mostrar u ocultar la vela en la página
+router.put('/:id/visible', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query('UPDATE products SET visible=$1 WHERE id=$2 RETURNING id, visible', [req.body.visible ? 1 : 0, req.params.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Producto no encontrado' });
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const { rows } = await pool.query(`SELECT p.*,c.name as category_name,c.care_mode as category_care_mode,c.care_title as category_care_title,c.care_text as category_care_text,c.care_note as category_care_note,c.product_note as category_product_note,c.active as category_active,s.name as supplier_name,(SELECT COALESCE(json_agg(json_build_object('id',pp.id,'label',pp.label) ORDER BY pp.position, pp.id),'[]'::json) FROM product_photos pp WHERE pp.product_id=p.id) AS photos FROM products p LEFT JOIN categories c ON p.category_id=c.id LEFT JOIN suppliers s ON p.supplier_id=s.id WHERE p.id=$1`,[req.params.id]);
-    if (!rows[0] || (rows[0].category_active === 0 && !isStaff(req))) return res.status(404).json({ error: 'Producto no encontrado' });
+    if (!rows[0] || ((rows[0].category_active === 0 || rows[0].visible === 0) && !isStaff(req))) return res.status(404).json({ error: 'Producto no encontrado' });
     const { rows: v } = await pool.query('SELECT * FROM product_variants WHERE product_id=$1',[rows[0].id]);
     const { rows: m } = await pool.query('SELECT * FROM stock_movements WHERE product_id=$1 ORDER BY created_at DESC LIMIT 10',[rows[0].id]);
     rows[0].variants=v; rows[0].movements=m;

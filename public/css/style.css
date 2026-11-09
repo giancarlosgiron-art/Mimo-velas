@@ -1327,3 +1327,15 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   .rc-calc-out > img { width: 100%; height: 160px; }
   .rc-blends { grid-template-columns: 1fr; }
 }
+
+/* Inventario: interruptor "En la página" por vela */
+.inv-visible { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 11.5px; font-weight: 800; white-space: nowrap; color: var(--text-muted); }
+.inv-visible input { display: none; }
+.inv-visible.on { color: var(--success); }
+.inv-visible input:checked + .site-switch { background: var(--success); }
+.inv-visible input:checked + .site-switch::after { left: 21px; }
+.product-image .inv-visible { position: absolute; top: 8px; left: 8px; z-index: 2; padding: 4px 10px 4px 4px; border-radius: 999px; background: rgba(255,255,255,0.92); box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+.product-image { position: relative; }
+.inv-hidden .product-image img, .inv-hidden .product-image > span:not(.inv-visible) { opacity: 0.4; filter: grayscale(0.6); }
+tr.inv-hidden td { opacity: 0.55; }
+tr.inv-hidden td:last-child { opacity: 1; }

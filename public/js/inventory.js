@@ -147,8 +147,9 @@ function renderInventory(products) {
 function productCard(p) {
   const categoryIcon = p.category_icon || '📦';
   return `
-    <div class="product-card" onclick="openProductDetail(${p.id})">
+    <div class="product-card ${p.visible === 0 ? 'inv-hidden' : ''}" onclick="openProductDetail(${p.id})">
       <div class="product-image">
+        ${visibleSwitch(p)}
         ${p.image ? `<img src="${p.image}" alt="${p.name}" />` : `<span>${categoryIcon}</span>`}
       </div>
       <div class="product-info">
@@ -166,9 +167,27 @@ function productCard(p) {
     </div>`;
 }
 
+// Interruptor "En la página": muestra u oculta la vela en el catálogo, sin importar el stock
+function visibleSwitch(p) {
+  const on = p.visible !== 0;
+  return `<label class="inv-visible ${on ? 'on' : ''}" onclick="event.stopPropagation()" title="${on ? 'Se ve en la página. Toca para ocultarla' : 'Oculta. Toca para mostrarla en la página'}">
+    <input type="checkbox" ${on ? 'checked' : ''} onchange="toggleProductVisible(${p.id}, this.checked)" />
+    <span class="site-switch"></span><span class="inv-visible-txt">${on ? 'En la página' : 'Oculta'}</span></label>`;
+}
+
+async function toggleProductVisible(id, visible) {
+  try {
+    await API.put(`/products/${id}/visible`, { visible });
+    const p = (typeof invProducts !== 'undefined' ? invProducts : []).find(x => x.id === id);
+    if (p) p.visible = visible ? 1 : 0;
+    toast(visible ? 'La vela ya se ve en la página' : 'Vela oculta de la página');
+    if (typeof filterInventory === 'function') filterInventory(); else loadInventory();
+  } catch (err) { toast(err.message, 'error'); loadInventory(); }
+}
+
 function productRow(p) {
   return `
-    <tr onclick="openProductDetail(${p.id})" style="cursor:pointer">
+    <tr onclick="openProductDetail(${p.id})" style="cursor:pointer" class="${p.visible === 0 ? 'inv-hidden' : ''}">
       <td><span class="tag">${p.sku}</span></td>
       <td>
         <div style="font-weight:600;font-size:0.875rem">${p.name}</div>
@@ -185,7 +204,8 @@ function productRow(p) {
       <td><strong>${p.stock}</strong>${App.trackStock ? ` <span style="color:var(--text-muted);font-size:0.75rem">/ min ${p.min_stock}</span>` : ''}</td>
       <td>${stockBadge(p.status, p.stock)}</td>
       <td onclick="event.stopPropagation()">
-        <div style="display:flex;gap:4px">
+        <div style="display:flex;gap:4px;align-items:center">
+          ${visibleSwitch(p)}
           <button class="btn btn-ghost btn-sm" onclick="openProductModal(${p.id})">✏️</button>
           <button class="btn btn-ghost btn-sm" onclick="confirmDeleteProduct(${p.id},'${p.name}')">🗑️</button>
         </div>
@@ -201,7 +221,7 @@ function filterInventory() {
   const filtered = invProducts.filter(p => {
     const matchSearch = !search || p.name.toLowerCase().includes(search) || p.sku.toLowerCase().includes(search);
     const matchCat = !cat || String(p.category_id) === cat;
-    const matchStatus = !status || p.status === status;
+    const matchStatus = !status || (status === 'visible' ? p.visible !== 0 : status === 'hidden' ? p.visible === 0 : p.status === status);
     return matchSearch && matchCat && matchStatus;
   });
 

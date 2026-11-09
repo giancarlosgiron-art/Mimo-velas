@@ -97,6 +97,8 @@ async function initSchema() {
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMP;
     ALTER TABLE sales ADD COLUMN IF NOT EXISTS order_id INTEGER;
     ALTER TABLE products ADD COLUMN IF NOT EXISTS main_label TEXT;
+    -- Mostrar u ocultar la vela en la página (Inventario → interruptor), sin importar el stock
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS visible INTEGER DEFAULT 1;
     CREATE TABLE IF NOT EXISTS product_photos (
       id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
       mime TEXT NOT NULL, data BYTEA NOT NULL, label TEXT, position INTEGER DEFAULT 0,
