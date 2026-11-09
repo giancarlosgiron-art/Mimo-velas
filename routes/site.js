@@ -125,7 +125,7 @@ const DEFAULTS = {
   // Trabajo a pedido: el stock es solo referencia (se cambia en Inventario)
   inventario: { track_stock: false },
   // Modo Navidad del catálogo: se enciende en diciembre y se apaga en enero
-  navidad: { enabled: true, logo: true, nieve: true, reno: true },
+  navidad: { enabled: true, logo: true, nieve: true, reno: true, sonido: true },
   pagos: {
     // Medios de pago que el cliente elige en el carrito (llegan al WhatsApp y al panel)
     enabled: true,
