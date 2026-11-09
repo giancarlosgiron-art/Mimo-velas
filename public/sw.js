@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mimo-admin-v2';
+const CACHE_NAME = 'mimo-admin-v3';
 
 // App shell assets to cache on install
 const APP_SHELL = [
