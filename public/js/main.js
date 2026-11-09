@@ -20,6 +20,7 @@ const PAGE_TITLES = {
   reports: 'Reportes',
   expenses: 'Gastos',
   taller: 'Taller',
+  recetas: 'Recetas',
   site: 'Mi página',
 };
 
@@ -32,6 +33,7 @@ const HEADER_ACTIONS = {
   reports:   { text: '📊 Generar', action: 'loadReports' },
   expenses:  { text: '+ Registrar gasto', action: 'openExpenseModal' },
   taller:    { text: '+ Insumo', action: 'openSupplyModal' },
+  recetas:   { text: '+ Nueva', action: 'recetasNew' },
   site:      { text: 'Ver página ↗', action: 'openCatalogSite' },
 };
 
@@ -152,6 +154,7 @@ async function navigate(page) {
     case 'reports':   await loadReports(); break;
     case 'expenses':  await loadExpenses(); break;
     case 'taller':    await loadTaller(); break;
+    case 'recetas':   await loadRecetas(); break;
     case 'site':      await loadSite(); break;
   }
 }

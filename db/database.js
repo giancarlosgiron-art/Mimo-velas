@@ -121,6 +121,18 @@ async function initSchema() {
       extra_cost REAL DEFAULT 0, labor_minutes REAL DEFAULT 0, auto_cost INTEGER DEFAULT 1,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+    -- Recetas: fichas de cada vela o molde, y mezclas de aromas (creación de aromas)
+    CREATE TABLE IF NOT EXISTS fragrance_blends (
+      id SERIAL PRIMARY KEY, name TEXT NOT NULL, description TEXT, parts JSONB DEFAULT '[]',
+      favorite INTEGER DEFAULT 0, position INTEGER DEFAULT 0, image_mime TEXT, image_data BYTEA, image_v INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS recipe_sheets (
+      id SERIAL PRIMARY KEY, name TEXT NOT NULL, type TEXT DEFAULT 'vela', product_id INTEGER, blend_id INTEGER,
+      fragrance_pct REAL DEFAULT 7, pieces INTEGER DEFAULT 1, mold_name TEXT, lines JSONB DEFAULT '[]',
+      notes TEXT, sync_cost INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
     CREATE TABLE IF NOT EXISTS productions (
       id SERIAL PRIMARY KEY, product_id INTEGER, product_name TEXT, quantity INTEGER NOT NULL,
       fragrance_supply_id INTEGER, fragrance_name TEXT, cost_total REAL DEFAULT 0, added_to_stock INTEGER DEFAULT 1,
@@ -179,6 +191,22 @@ async function initSchema() {
     for (let i = 0; i < aromas.length; i++) {
       await pool.query('INSERT INTO aromas (name, position) VALUES ($1,$2)', [aromas[i], i + 1]);
     }
+  }
+
+  // Mezclas de aromas iniciales (las que preparó Gian), una sola vez: si después las borra, no vuelven
+  const { rows: sb } = await pool.query("SELECT 1 FROM app_settings WHERE key='blends_seeded'");
+  if (!sb[0]) {
+    const fs = require('fs'), path = require('path');
+    const dir = path.join(__dirname, 'seed');
+    const list = JSON.parse(fs.readFileSync(path.join(dir, 'mezclas.json'), 'utf8'));
+    for (let i = 0; i < list.length; i++) {
+      const b = list[i];
+      const file = path.join(dir, 'mezclas', b.img);
+      const img = fs.existsSync(file) ? fs.readFileSync(file) : null;
+      await pool.query(`INSERT INTO fragrance_blends (name,description,parts,favorite,position,image_mime,image_data,image_v) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [b.name, b.description, JSON.stringify(b.parts.map(([aroma, pct]) => ({ aroma, pct }))), b.favorite ? 1 : 0, i + 1, img ? 'image/jpeg' : null, img, img ? 1 : 0]);
+    }
+    await pool.query(`INSERT INTO app_settings (key,value) VALUES ('blends_seeded','true') ON CONFLICT (key) DO NOTHING`);
   }
 
   const { rows } = await pool.query('SELECT COUNT(*) as c FROM users');

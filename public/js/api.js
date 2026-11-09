@@ -133,6 +133,17 @@ const API = {
   produce(data)               { return this.post('/taller/production', data); },
   undoProduction(id)          { return this.del(`/taller/production/${id}`); },
 
+  // Recetas: fichas de velas/moldes y mezclas de aromas
+  sheets()                    { return this.get('/recetas/sheets'); },
+  createSheet(data)           { return this.post('/recetas/sheets', data); },
+  updateSheet(id, data)       { return this.put(`/recetas/sheets/${id}`, data); },
+  deleteSheet(id)             { return this.del(`/recetas/sheets/${id}`); },
+  blends()                    { return this.get('/recetas/blends'); },
+  createBlend(data)           { return this.post('/recetas/blends', data); },
+  updateBlend(id, data)       { return this.put(`/recetas/blends/${id}`, data); },
+  deleteBlend(id)             { return this.del(`/recetas/blends/${id}`); },
+  blendImage(id, file)        { const fd = new FormData(); fd.append('image', file); return this.post(`/recetas/blends/${id}/image`, fd); },
+
   // Reports
   reportSummary(from, to) { return this.get(`/reports/summary?from=${from}&to=${to}`); },
   reportByCategory(from, to) { return this.get(`/reports/by-category?from=${from}&to=${to}`); },
