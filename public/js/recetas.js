@@ -7,6 +7,7 @@ const RC_ROLES = {
   envase:     { icon: '🫙', label: 'Envase',      unit: 'unid', kinds: ['frasco'] },
   pegatina:   { icon: '🏷️', label: 'Pegatina',    unit: 'unid', kinds: ['mecha', 'empaque', 'otro'] },
   decoracion: { icon: '🍓', label: 'Decoración',  unit: 'unid', kinds: ['decoracion', 'cera', 'colorante', 'otro'] },
+  pieza:      { icon: '🧩', label: 'Pieza de molde', unit: 'unid', kinds: [], velaOnly: true },
   colorante:  { icon: '🎨', label: 'Colorante',   unit: 'g',    kinds: ['colorante'] },
   otro:       { icon: '✨', label: 'Otro',        unit: 'unid', kinds: null },
 };
@@ -71,7 +72,7 @@ function renderSheets() {
 
 function sheetCard(s) {
   const c = s.calc;
-  const deco = (s.lines || []).filter(l => l.role === 'decoracion' && numT(l.qty) > 0);
+  const deco = (s.lines || []).filter(l => (l.role === 'decoracion' || l.role === 'pieza') && numT(l.qty) > 0);
   const per = s.type === 'molde' && c.pieces > 1;
   return `
     <div class="card rc-card" onclick="openSheetModal(${s.id})">
@@ -83,7 +84,7 @@ function sheetCard(s) {
       <div class="rc-facts">
         <div><span>Cera</span><strong>${g1(c.wax)} g</strong></div>
         <div><span>Esencia</span><strong>${g1(c.ess_g)} g</strong><small>${s.fragrance_pct}%</small></div>
-        ${per ? `<div><span>Piezas</span><strong>${c.pieces}</strong></div>` : `<div><span>Decoración</span><strong>${deco.reduce((a, l) => a + numT(l.qty), 0)}</strong><small>${g1(c.deco_weight)} g</small></div>`}
+        ${per ? `<div><span>Piezas</span><strong>${c.pieces}</strong></div>` : `<div><span>Decoración</span><strong>${deco.reduce((a, l) => a + numT(l.qty), 0)}</strong><small>${g1(c.deco_weight + (c.mold_weight || 0))} g</small></div>`}
       </div>
       <div class="rc-card-foot">
         <span>${s.blend_name ? '🌸 ' + escT(s.blend_name) : '🌸 Aroma a elección'}</span>
@@ -122,7 +123,10 @@ function openSheetModal(id, type, copyFrom) {
         </div>` : ''}
         <div class="form-label" style="margin-top:4px">Lo que lleva ${type === 'molde' ? 'la tanda' : 'una vela'}</div>
         <div id="sh-lines"></div>
-        <button class="btn btn-secondary btn-sm" onclick="SheetDraft.lines.push({role:'decoracion',qty:'',weight_g:''});rcLines()">+ Agregar</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" onclick="SheetDraft.lines.push({role:'decoracion',qty:'',weight_g:''});rcLines()">+ Agregar</button>
+          ${type === 'vela' ? `<button class="btn btn-secondary btn-sm" onclick="SheetDraft.lines.push({role:'pieza',sheet_id:'',qty:1});rcLines()">🧩 + Pieza de molde</button>` : ''}
+        </div>
         <div class="tl-fields" style="margin-top:16px">
           <div class="form-group"><label class="form-label">Mezcla de aroma</label>
             <select class="form-control" onchange="SheetDraft.blend_id=this.value;rcSummary()"><option value="">A elección (un solo aroma)</option>${blendOpts}</select></div>
@@ -157,10 +161,11 @@ function rcLines() {
     const s = Taller.supplies.find(x => x.id === Number(l.supply_id));
     const unit = s ? UNIT_LABEL[s.unit] : UNIT_LABEL[r.unit];
     const deco = l.role === 'decoracion';
+    if (l.role === 'pieza') return rcMoldLine(l, i);
     return `
       <div class="rc-line ${deco ? 'deco' : ''}">
         <select class="form-control rc-role" onchange="SheetDraft.lines[${i}].role=this.value;rcLines()">
-          ${Object.entries(RC_ROLES).map(([k, v]) => `<option value="${k}" ${k === l.role ? 'selected' : ''}>${v.icon} ${v.label}</option>`).join('')}
+          ${Object.entries(RC_ROLES).filter(([k, v]) => !v.velaOnly || SheetDraft.type === 'vela' || k === l.role).map(([k, v]) => `<option value="${k}" ${k === l.role ? 'selected' : ''}>${v.icon} ${v.label}</option>`).join('')}
         </select>
         <div class="rc-what">
           <select class="form-control" onchange="SheetDraft.lines[${i}].supply_id=this.value;rcLines()">
@@ -180,6 +185,30 @@ function rcLines() {
   rcSummary();
 }
 
+// Línea "Pieza de molde": una de tus recetas de molde + cuántas piezas lleva la vela
+function rcMoldLine(l, i) {
+  const molds = Rc.sheets.filter(x => x.type === 'molde');
+  const m = molds.find(x => x.id === Number(l.sheet_id));
+  return `
+      <div class="rc-line deco">
+        <select class="form-control rc-role" onchange="SheetDraft.lines[${i}].role=this.value;rcLines()">
+          ${Object.entries(RC_ROLES).map(([k, v]) => `<option value="${k}" ${k === l.role ? 'selected' : ''}>${v.icon} ${v.label}</option>`).join('')}
+        </select>
+        <div class="rc-what">
+          <select class="form-control" onchange="SheetDraft.lines[${i}].sheet_id=this.value;rcLines()">
+            <option value="">${molds.length ? 'Elige el molde…' : 'Aún no tienes recetas de molde'}</option>
+            ${molds.map(o => `<option value="${o.id}" ${o.id === Number(l.sheet_id) ? 'selected' : ''}>${escT(o.name)}${o.mold_name ? ' · ' + escT(o.mold_name) : ''}</option>`).join('')}
+          </select>
+        </div>
+        <div class="rc-qty rc-q">
+          <input class="form-control" type="number" step="any" min="0" value="${l.qty ?? ''}" placeholder="Cuántas" oninput="SheetDraft.lines[${i}].qty=this.value;rcSummary()" />
+          <span>piezas</span>
+        </div>
+        <div class="rc-qty rc-w"><small class="site-hint" style="margin:0">${m ? `${g1(m.calc.total_weight / m.calc.pieces)} g · ${m.calc.cost > 0 ? fmt(m.calc.cost_per_piece) : '—'} c/u` : ''}</small></div>
+        <button class="btn btn-ghost btn-sm rc-x" title="Quitar" onclick="SheetDraft.lines.splice(${i},1);rcLines()">✕</button>
+      </div>`;
+}
+
 function rcSyncRow() {
   const p = Rc.products.find(x => String(x.id) === String(SheetDraft.product_id));
   document.getElementById('sh-sync').innerHTML = p ? `
@@ -194,8 +223,15 @@ function rcCalc(d) {
   const perG = (s) => s.unit === 'ml' ? s.unit_cost / density : s.unit_cost;
   const ess = Taller.supplies.filter(s => s.kind === 'esencia' && s.unit_cost > 0);
   const avgG = ess.length ? ess.reduce((a, s) => a + perG(s), 0) / ess.length : 0;
-  let wax = 0, deco = 0, decoCount = 0, cost = 0, missing = false;
+  let wax = 0, deco = 0, decoCount = 0, cost = 0, missing = false, mold = 0, moldCount = 0;
   for (const l of d.lines) {
+    if (l.role === 'pieza') {
+      const m = Rc.sheets.find(x => x.type === 'molde' && x.id === Number(l.sheet_id));
+      const q = numT(l.qty);
+      if (!m) { if (q > 0) missing = true; continue; }
+      moldCount += q; mold += q * m.calc.total_weight / m.calc.pieces; cost += q * m.calc.cost_per_piece;
+      continue;
+    }
     const s = Taller.supplies.find(x => x.id === Number(l.supply_id));
     const qty = numT(l.qty);
     if (l.role === 'cera') wax += qty;
@@ -211,7 +247,7 @@ function rcCalc(d) {
     return { ...p, grams: g, s, cost: g * (s && s.unit_cost ? perG(s) : avgG) };
   }) : [];
   cost += parts.length ? parts.reduce((a, p) => a + p.cost, 0) : essG * avgG;
-  return { pieces, wax, essG, essMl: essG / density, parts, deco, decoCount, total: wax + essG + deco, cost, perPiece: cost / pieces, missing };
+  return { pieces, wax, essG, essMl: essG / density, parts, deco, decoCount, mold, moldCount, total: wax + essG + deco + mold, cost, perPiece: cost / pieces, missing };
 }
 
 function rcSummary() {
@@ -224,17 +260,19 @@ function rcSummary() {
     ${row(`Esencia <small>${numT(d.fragrance_pct)}%</small>`, `${g1(c.essG)} g <small>≈ ${g1(c.essMl)} ml</small>`)}
     ${c.parts.length ? `<div class="rc-parts">${c.parts.map(p => `<div><span>${escT(p.aroma)} <small>${p.pct}%</small></span><strong>${g1(p.grams)} g</strong></div>`).join('')}</div>` : ''}
     ${c.decoCount ? row(`Decoración <small>${c.decoCount} unid.</small>`, `${g1(c.deco)} g`) : ''}
+    ${c.moldCount ? row(`🧩 Piezas de molde <small>${g1(c.moldCount)} unid.</small>`, `${g1(c.mold)} g`) : ''}
     ${row('Peso total aprox.', `${g1(c.total)} g`, 'sum')}
     ${molde ? row('Por pieza', `${g1(c.total / c.pieces)} g · ${g1(c.wax / c.pieces)} g de cera`) : ''}
     <div class="tl-res-title" style="margin-top:14px">Costo estimado</div>
     ${row(molde ? 'Por pieza' : 'Por vela', c.cost > 0 ? fmt(c.perPiece) : '—', 'sum')}
     ${molde ? row('La tanda completa', fmt(c.cost)) : ''}
-    <small class="site-hint">${c.missing ? 'Hay líneas sin insumo del Taller: no suman al costo. ' : ''}Sale de lo que pagaste por cada insumo en Taller.</small>`;
+    <small class="site-hint">${c.missing ? 'Hay líneas sin insumo del Taller: no suman al costo. ' : ''}Sale de lo que pagaste por cada insumo en Taller.${c.moldCount ? ' Las piezas de molde suman lo de su receta (cera, esencia, colorante…) y se descuentan al registrar la producción.' : ''}</small>`;
 }
 
 async function saveSheet() {
   const d = SheetDraft;
   if (!d.name.trim()) return toast('Ponle nombre a la receta', 'warning');
+  if (d.lines.some(l => l.role === 'pieza' && !l.sheet_id && numT(l.qty) > 0)) return toast('Elige qué molde es cada pieza', 'warning');
   const data = { ...d, lines: d.lines.map(l => ({ ...l, qty: numT(l.qty), weight_g: numT(l.weight_g) })) };
   try {
     if (d.id) await API.updateSheet(d.id, data); else await API.createSheet(data);
