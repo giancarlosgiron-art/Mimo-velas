@@ -4,7 +4,7 @@ const router = express.Router();
 const pool = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
 const C = require('../services/costing');
-const { moldItemsForSheet } = require('../services/molds');
+const { moldItemsForSheet, moldPieces } = require('../services/molds');
 const { trackStock, statusFor } = require('../services/stockMode');
 router.use(authMiddleware);
 
@@ -172,6 +172,7 @@ router.post('/supplies/:id/movement', async (req, res) => {
 // ── Recetas (costo por vela) ─────────────────────────────────────
 async function recipesList(db = pool) {
   const [settings, map] = await Promise.all([C.getSettings(db), C.suppliesMap(db)]);
+  const molds = await moldPieces(map, settings, db);
   const { rows } = await db.query(`
     SELECT p.id, p.name, p.sale_price, p.cost_price, p.stock, c.name AS category_name, COALESCE(c.active,1) AS category_active,
            r.items, r.fragrance_pct, r.fragrance_supply_id, r.extra_cost, r.labor_minutes, r.auto_cost, r.updated_at AS recipe_updated
@@ -179,13 +180,14 @@ async function recipesList(db = pool) {
     ORDER BY (r.product_id IS NULL), c.position NULLS LAST, lower(p.name)`);
   return {
     settings,
+    molds: Object.values(molds),
     products: rows.map(p => {
       const has = p.items !== null && p.items !== undefined;
       const recipe = has ? { items: p.items || [], fragrance_pct: p.fragrance_pct, fragrance_supply_id: p.fragrance_supply_id,
         extra_cost: p.extra_cost, labor_minutes: p.labor_minutes, auto_cost: p.auto_cost } : null;
       return {
         id: p.id, name: p.name, category_name: p.category_name, sale_price: p.sale_price, cost_price: p.cost_price, stock: p.stock,
-        recipe, cost: recipe ? C.computeRecipe(recipe, map, settings, p.sale_price) : null,
+        recipe, cost: recipe ? C.computeRecipe(recipe, map, settings, p.sale_price, null, molds) : null,
       };
     }),
   };
@@ -201,8 +203,10 @@ router.put('/recipes/:productId', async (req, res) => {
     const { rows: pr } = await pool.query('SELECT id FROM products WHERE id=$1', [pid]);
     if (!pr[0]) return res.status(404).json({ error: 'Producto no encontrado' });
     const items = (Array.isArray(req.body.items) ? req.body.items : [])
-      .map(i => ({ supply_id: Number(i.supply_id), qty: Math.max(0, num(i.qty)), ...(i.scent === false ? { scent: false } : {}) }))
-      .filter(i => i.supply_id && i.qty > 0);
+      .map(i => Number(i.sheet_id)
+        ? { sheet_id: Number(i.sheet_id), qty: Math.max(0, num(i.qty)) }   // pieza de molde
+        : { supply_id: Number(i.supply_id), qty: Math.max(0, num(i.qty)), ...(i.scent === false ? { scent: false } : {}) })
+      .filter(i => (i.supply_id || i.sheet_id) && i.qty > 0);
     const fid = Number(req.body.fragrance_supply_id) || null;
     await pool.query(`
       INSERT INTO product_recipes (product_id,items,fragrance_pct,fragrance_supply_id,extra_cost,labor_minutes,auto_cost,updated_at)
@@ -236,7 +240,8 @@ async function planProduction(db, b) {
   const [settings, map] = await Promise.all([C.getSettings(db), C.suppliesMap(db)]);
   const fid = Number(b.fragrance_supply_id) || p.fragrance_supply_id || null;
   const blendId = Number(b.blend_id) || null;
-  const cost = C.computeRecipe(p, map, settings, p.sale_price, blendId ? null : fid);
+  const molds = await moldPieces(map, settings, db);
+  const cost = C.computeRecipe(p, map, settings, p.sale_price, blendId ? null : fid, molds);
   const needs = cost.lines.map(l => ({ supply_id: l.supply_id, name: l.name, unit: l.unit, qty: l.qty * qty }));
   let blend = null;
   if (cost.fragrance && blendId) {
@@ -269,7 +274,8 @@ async function planProduction(db, b) {
   // sus insumos no están en la receta de Costos por vela, así que se suman aquí para descontarlos igual.
   const { rows: shs } = await db.query("SELECT * FROM recipe_sheets WHERE type='vela' AND product_id=$1 ORDER BY sync_cost DESC, updated_at DESC LIMIT 1", [pid]);
   const sheet = shs[0];
-  if (sheet && !sheet.sync_cost) {
+  // (si la receta de Costos por vela ya tiene sus piezas de molde, no se cuentan dos veces)
+  if (sheet && !sheet.sync_cost && !(p.items || []).some(it => it.sheet_id)) {
     const molds = await moldItemsForSheet(sheet, map, settings, db);
     for (const it of molds.items) {
       const s = map[it.supply_id];

@@ -35,10 +35,29 @@ function gramsToUnit(s, grams, density) {
  * Desglose del costo de una vela según su receta.
  * fragranceId: esencia concreta (al producir); si no hay, la de la receta; si tampoco, el promedio de tus esencias.
  */
-function computeRecipe(recipe, suppliesById, settings, salePrice, fragranceId) {
+function computeRecipe(recipe, suppliesById, settings, salePrice, fragranceId, molds = {}) {
   const lines = [];
+  const pieces = [];
   let materials = 0, waxScented = 0;
   for (const it of recipe?.items || []) {
+    // Pieza de molde (ej. una bola de helado): suma los insumos de su receta de molde, sin la esencia de la vela
+    if (it.sheet_id) {
+      const m = molds[it.sheet_id];
+      const q = n(it.qty);
+      if (!m || q <= 0) continue;
+      let pc = m.extra * q;
+      for (const mi of m.items) {
+        const s = suppliesById[mi.supply_id];
+        if (!s) continue;
+        const qty = mi.qty * q, cost = qty * n(s.unit_cost);
+        pc += cost;
+        materials += cost;
+        lines.push({ supply_id: s.id, name: `${s.name} (${m.name})`, kind: s.kind, unit: s.unit, qty, unit_cost: n(s.unit_cost), cost, scent: false, mold: m.name });
+      }
+      materials += m.extra * q;
+      pieces.push({ sheet_id: m.id, name: m.name, qty: q, cost: pc });
+      continue;
+    }
     const s = suppliesById[it.supply_id];
     const qty = n(it.qty);
     if (!s || qty <= 0) continue;
@@ -74,7 +93,7 @@ function computeRecipe(recipe, suppliesById, settings, salePrice, fragranceId) {
   const profitDirect = price - commission - direct;
   const profitTotal = price - commission - total;
   return {
-    lines, fragrance, extra, materials, direct, labor, total, wax_grams: waxScented,
+    lines, pieces, fragrance, extra, materials, direct, labor, total, wax_grams: waxScented,
     product_cost: settings.include_labor ? total : direct,
     price, commission,
     profit_direct: profitDirect, margin_direct: price ? profitDirect / price : 0,
@@ -101,8 +120,9 @@ async function syncProductCosts(db = pool) {
   const [settings, map] = await Promise.all([getSettings(db), suppliesMap(db)]);
   const { rows } = await db.query(
     'SELECT r.*, p.sale_price FROM product_recipes r JOIN products p ON p.id=r.product_id WHERE r.auto_cost=1');
+  const molds = await require('./molds').moldPieces(map, settings, db);
   for (const r of rows) {
-    const c = computeRecipe(r, map, settings, r.sale_price);
+    const c = computeRecipe(r, map, settings, r.sale_price, null, molds);
     await db.query('UPDATE products SET cost_price=$1 WHERE id=$2', [Math.round(c.product_cost), r.product_id]);
   }
 }

@@ -376,6 +376,15 @@ function computeRecipeT(recipe, salePrice) {
   let materials = 0, wax = 0;
   const lines = [];
   for (const it of recipe.items) {
+    // Pieza de molde: sus insumos (Recetas → Moldes), ya calculados por pieza en el servidor
+    if (it.sheet_id) {
+      const m = (Taller.recipes?.molds || []).find(x => x.id === Number(it.sheet_id));
+      const q = numT(it.qty);
+      if (!m || q <= 0) continue;
+      materials += m.cost * q;
+      lines.push({ ...it, mold: m, cost: m.cost * q });
+      continue;
+    }
     const s = byId[it.supply_id]; const qty = numT(it.qty);
     if (!s || qty <= 0) continue;
     const cost = qty * s.unit_cost; materials += cost;
@@ -492,7 +501,10 @@ function openRecipeModal(pid, draft) {
           <select class="form-control" onchange="copyRecipeFrom(this.value)"><option value="">—</option>${others.map(o => `<option value="${o.id}">${escT(o.name)}</option>`).join('')}</select></div>` : ''}
         <div class="form-label">Insumos de una vela</div>
         <div id="rc-lines"></div>
-        <button class="btn btn-secondary btn-sm" onclick="RecipeDraft.items.push({supply_id:'',qty:''});renderRecipeLines()">+ Agregar insumo</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" onclick="RecipeDraft.items.push({supply_id:'',qty:''});renderRecipeLines()">+ Agregar insumo</button>
+          <button class="btn btn-secondary btn-sm" onclick="RecipeDraft.items.push({sheet_id:'',qty:1});renderRecipeLines()">🧩 + Pieza de molde</button>
+        </div>
         ${!Taller.supplies.length ? '<p class="site-hint">Todavía no tienes insumos: agrégalos en la pestaña 📦 Insumos.</p>' : ''}
         <div class="tl-fields" style="margin-top:16px">
           <div class="form-group"><label class="form-label">% de esencia sobre la cera</label>
@@ -540,7 +552,24 @@ function renderRecipeLines() {
     const list = Taller.supplies.filter(s => s.kind === k);
     return list.length ? `<optgroup label="${v.icon} ${v.label}">${list.map(s => `<option value="${s.id}">${escT(s.name)}</option>`).join('')}</optgroup>` : '';
   }).join('');
+  const molds = Taller.recipes?.molds || [];
   document.getElementById('rc-lines').innerHTML = RecipeDraft.items.map((it, i) => {
+    if ('sheet_id' in it) {
+      const m = molds.find(x => x.id === Number(it.sheet_id));
+      return `
+      <div class="tl-line">
+        <select class="form-control" onchange="RecipeDraft.items[${i}].sheet_id=Number(this.value);renderRecipeLines()">
+          <option value="">${molds.length ? '🧩 Elige la pieza de molde…' : 'Aún no tienes recetas de molde (Recetas → Moldes)'}</option>
+          ${molds.map(o => `<option value="${o.id}" ${o.id === Number(it.sheet_id) ? 'selected' : ''}>🧩 ${escT(o.name)}${o.mold_name ? ' · ' + escT(o.mold_name) : ''}</option>`).join('')}
+        </select>
+        <div class="tl-line-qty">
+          <input class="form-control" type="number" step="any" min="0" value="${it.qty}" placeholder="Cuántas" oninput="RecipeDraft.items[${i}].qty=this.value;renderRecipeResult()" />
+          <span>piezas</span>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="RecipeDraft.items.splice(${i},1);renderRecipeLines()" title="Quitar">✕</button>
+        ${m ? `<small class="tl-line-scent">${fmt(m.cost)} c/u · ${m.items.map(mi => { const s = Taller.supplies.find(x => x.id === mi.supply_id); return s ? `${escT(s.name)} ${fmtQty(mi.qty, s.unit)}` : ''; }).filter(Boolean).join(' · ')}</small>` : ''}
+      </div>`;
+    }
     const s = Taller.supplies.find(x => x.id === Number(it.supply_id));
     return `
       <div class="tl-line">
@@ -563,7 +592,8 @@ function renderRecipeResult() {
   const row = (a, b, cls = '') => `<div class="tl-res-row ${cls}"><span>${a}</span><strong>${b}</strong></div>`;
   document.getElementById('rc-result').innerHTML = `
     <div class="tl-res-title">Costo de una vela</div>
-    ${c.lines.map(l => row(`${escT(l.s.name)} <small>${fmtQty(l.qty, l.s.unit)}</small>`, fmt(l.cost))).join('') || '<p class="text-muted text-sm">Agrega insumos para ver el costo.</p>'}
+    ${c.lines.map(l => l.mold ? row(`🧩 ${escT(l.mold.name)} <small>${numT(l.qty)} pieza${numT(l.qty) !== 1 ? 's' : ''}</small>`, fmt(l.cost))
+      : row(`${escT(l.s.name)} <small>${fmtQty(l.qty, l.s.unit)}</small>`, fmt(l.cost))).join('') || '<p class="text-muted text-sm">Agrega insumos para ver el costo.</p>'}
     ${c.frag ? row(`Esencia <small>${Math.round(c.frag.grams * 10) / 10} g ≈ ${Math.round(c.frag.ml * 10) / 10} ml</small>`, c.frag.missing ? '<span class="text-warning">sin costo</span>' : fmt(c.frag.cost)) : ''}
     ${numT(RecipeDraft.extra_cost) ? row('Otros', fmt(numT(RecipeDraft.extra_cost))) : ''}
     ${row('Costo materiales', fmt(c.direct), 'sum')}
@@ -580,7 +610,10 @@ function renderRecipeResult() {
 
 async function saveRecipe() {
   const d = RecipeDraft;
-  const items = d.items.filter(i => i.supply_id && numT(i.qty) > 0).map(i => ({ supply_id: Number(i.supply_id), qty: numT(i.qty), ...(i.scent === false ? { scent: false } : {}) }));
+  if (d.items.some(i => 'sheet_id' in i && !i.sheet_id && numT(i.qty) > 0)) return toast('Elige qué pieza de molde es', 'warning');
+  const items = d.items.filter(i => (i.supply_id || i.sheet_id) && numT(i.qty) > 0)
+    .map(i => i.sheet_id ? { sheet_id: Number(i.sheet_id), qty: numT(i.qty) }
+      : { supply_id: Number(i.supply_id), qty: numT(i.qty), ...(i.scent === false ? { scent: false } : {}) });
   if (!items.length) return toast('Agrega al menos un insumo con su cantidad', 'warning');
   try {
     await API.saveRecipe(d.pid, { items, fragrance_pct: numT(d.fragrance_pct), fragrance_supply_id: Number(d.fragrance_supply_id) || null,

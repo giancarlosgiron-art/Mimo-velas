@@ -48,4 +48,16 @@ async function moldItemsForSheet(sh, map, settings, db = pool) {
   return { items, extra };
 }
 
-module.exports = { moldItemsForSheet };
+/** Todas tus recetas de molde, convertidas a lo que usa UNA pieza: { [id]: { id, name, mold_name, items, extra, cost } } */
+async function moldPieces(map, settings, db = pool) {
+  const { rows } = await db.query("SELECT id, name, mold_name FROM recipe_sheets WHERE type='molde' ORDER BY lower(name)");
+  const out = {};
+  for (const m of rows) {
+    const { items, extra } = await moldItemsForSheet({ pieces: 1, lines: [{ role: 'pieza', sheet_id: m.id, qty: 1 }] }, map, settings, db);
+    const cost = items.reduce((a, it) => a + it.qty * n(map[it.supply_id]?.unit_cost), 0) + extra;
+    out[m.id] = { id: m.id, name: m.name, mold_name: m.mold_name, items: items.map(({ mold, ...it }) => it), extra, cost };
+  }
+  return out;
+}
+
+module.exports = { moldItemsForSheet, moldPieces };
