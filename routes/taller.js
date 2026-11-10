@@ -4,6 +4,7 @@ const router = express.Router();
 const pool = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
 const C = require('../services/costing');
+const { moldItemsForSheet } = require('../services/molds');
 const { trackStock, statusFor } = require('../services/stockMode');
 router.use(authMiddleware);
 
@@ -263,6 +264,19 @@ async function planProduction(db, b) {
     if (!cost.fragrance.supply_id) throw Object.assign(new Error('Elige qué esencia o combinación usaste'), { status: 400 });
     const s = map[cost.fragrance.supply_id];
     needs.push({ supply_id: s.id, name: s.name, unit: s.unit, qty: C.gramsToUnit(s, cost.fragrance.grams * qty, settings.density) });
+  }
+  // Piezas de molde de su receta (Recetas → Velas): si la receta no manda el costo del producto,
+  // sus insumos no están en la receta de Costos por vela, así que se suman aquí para descontarlos igual.
+  const { rows: shs } = await db.query("SELECT * FROM recipe_sheets WHERE type='vela' AND product_id=$1 ORDER BY sync_cost DESC, updated_at DESC LIMIT 1", [pid]);
+  const sheet = shs[0];
+  if (sheet && !sheet.sync_cost) {
+    const molds = await moldItemsForSheet(sheet, map, settings, db);
+    for (const it of molds.items) {
+      const s = map[it.supply_id];
+      needs.push({ supply_id: s.id, name: `${s.name} (${it.mold})`, unit: s.unit, qty: it.qty * qty });
+      cost.direct += it.qty * n(s.unit_cost);
+    }
+    cost.direct += molds.extra;
   }
   // Si una esencia o insumo se repite, se junta
   const merged = {};

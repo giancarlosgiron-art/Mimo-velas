@@ -5,6 +5,7 @@ const pool = require('../db/database');
 const { authMiddleware } = require('../middleware/auth');
 const { upload } = require('../middleware/upload');
 const C = require('../services/costing');
+const { moldItemsForSheet } = require('../services/molds');
 
 const n = (v) => Number(v) || 0;
 const num = (v, d = 0) => { const x = parseFloat(v); return Number.isFinite(x) ? x : d; };
@@ -142,45 +143,19 @@ async function syncSheetToProduct(sh) {
   if (!sh.sync_cost || !sh.product_id) return;
   const pieces = Math.max(1, n(sh.pieces) || 1);
   const [map, settings] = await Promise.all([C.suppliesMap(), C.getSettings()]);
-  const essences = Object.values(map).filter(s => s.kind === 'esencia');
-  const avgG = (() => { const e = essences.filter(s => n(s.unit_cost) > 0); return e.length ? e.reduce((a, s) => a + C.costPerGram(s, settings.density), 0) / e.length : 0; })();
   const items = [];
-  let extra = 0; // lo que no se puede descontar de un insumo (esencia "a elección" de una pieza de molde)
-  const addLines = (lines, factor, asMold) => {
-    for (const l of lines || []) {
-      if (l.role === 'pieza') continue;
-      const s = l.supply_id ? map[l.supply_id] : null;
-      if (!s || n(l.qty) <= 0) continue;
-      const amount = l.role === 'decoracion' && s.unit === 'g' ? n(l.qty) * n(l.weight_g) : n(l.qty);
-      // La cera de la vela lleva la esencia de la vela; la de las piezas de molde no (ya tienen la suya)
-      const scent = !asMold && l.role === 'cera' ? {} : s.kind === 'cera' ? { scent: false } : {};
-      items.push({ supply_id: s.id, qty: amount * factor, ...scent });
-    }
-  };
-  addLines(sh.lines, 1 / pieces, false);
-  const moldLines = (sh.lines || []).filter(l => l.role === 'pieza' && l.sheet_id && n(l.qty) > 0);
-  if (moldLines.length) {
-    const { rows: molds } = await pool.query("SELECT * FROM recipe_sheets WHERE type='molde' AND id = ANY($1)", [moldLines.map(l => Number(l.sheet_id))]);
-    const { rows: blends } = await pool.query('SELECT id, parts FROM fragrance_blends');
-    for (const l of moldLines) {
-      const m = molds.find(x => x.id === Number(l.sheet_id));
-      if (!m) continue;
-      const per = n(l.qty) / Math.max(1, n(m.pieces) || 1) / pieces; // parte de la tanda del molde que va en una vela
-      addLines(m.lines, per, true);
-      const moldWax = (m.lines || []).filter(x => x.role === 'cera').reduce((a, x) => a + n(x.qty), 0);
-      const essG = moldWax * n(m.fragrance_pct) / 100 * per;
-      if (essG <= 0) continue;
-      const blend = blends.find(b => b.id === m.blend_id);
-      if (blend?.parts?.length) {
-        for (const pt of blend.parts) {
-          const s = C.matchEssence(pt.aroma, essences);
-          const g = essG * n(pt.pct) / 100;
-          if (s) items.push({ supply_id: s.id, qty: C.gramsToUnit(s, g, settings.density) });
-          else extra += g * avgG;
-        }
-      } else extra += essG * avgG;
-    }
+  for (const l of sh.lines || []) {
+    if (l.role === 'pieza') continue;
+    const s = l.supply_id ? map[l.supply_id] : null;
+    if (!s || n(l.qty) <= 0) continue;
+    const amount = l.role === 'decoracion' && s.unit === 'g' ? n(l.qty) * n(l.weight_g) : n(l.qty);
+    // Solo la cera de la vela lleva la esencia de la vela
+    items.push({ supply_id: s.id, qty: amount / pieces, ...(l.role === 'cera' ? {} : s.kind === 'cera' ? { scent: false } : {}) });
   }
+  // Piezas de molde → sus insumos; `extra` = lo que no se puede descontar (esencia "a elección" de una pieza)
+  const molds = await moldItemsForSheet(sh, map, settings);
+  for (const { mold, ...it } of molds.items) items.push(it);
+  const extra = molds.extra;
   // Esencia de la vela: promedio de tus esencias (el mismo costo que muestra la ficha cuando el aroma es a elección)
   await pool.query(`
     INSERT INTO product_recipes (product_id,items,fragrance_pct,fragrance_supply_id,extra_cost,auto_cost,updated_at) VALUES ($1,$2,$3,NULL,$4,1,NOW())
