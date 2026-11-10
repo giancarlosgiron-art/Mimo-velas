@@ -275,7 +275,9 @@ async function planProduction(db, b) {
   const { rows: shs } = await db.query("SELECT * FROM recipe_sheets WHERE type='vela' AND product_id=$1 ORDER BY sync_cost DESC, updated_at DESC LIMIT 1", [pid]);
   const sheet = shs[0];
   // (si la receta de Costos por vela ya tiene sus piezas de molde, no se cuentan dos veces)
-  if (sheet && !sheet.sync_cost && !(p.items || []).some(it => it.sheet_id)) {
+  const recipeHasMolds = (p.items || []).some(it => it.sheet_id || it.mold);
+  const warnings = [];
+  if (sheet && !recipeHasMolds) {
     const molds = await moldItemsForSheet(sheet, map, settings, db);
     for (const it of molds.items) {
       const s = map[it.supply_id];
@@ -284,11 +286,19 @@ async function planProduction(db, b) {
     }
     cost.direct += molds.extra;
   }
+  // Avisos: piezas de molde cuyo molde tiene líneas sin insumo elegido (no se pueden descontar)
+  const moldIds = [...(p.items || []).filter(it => it.sheet_id).map(it => Number(it.sheet_id)),
+    ...(sheet ? (sheet.lines || []).filter(l => l.role === 'pieza' && l.sheet_id).map(l => Number(l.sheet_id)) : [])];
+  if (moldIds.length) {
+    const { rows: ms } = await db.query("SELECT id, name, lines FROM recipe_sheets WHERE id = ANY($1)", [[...new Set(moldIds)]]);
+    for (const m of ms) for (const l of m.lines || [])
+      if (!l.supply_id && n(l.qty) > 0) warnings.push(`El molde "${m.name}" tiene "${l.name || l.role}" sin insumo elegido: no se descuenta. Elígelo en Recetas → Moldes.`);
+  }
   // Si una esencia o insumo se repite, se junta
   const merged = {};
   for (const nd of needs) merged[nd.supply_id] = merged[nd.supply_id] ? { ...merged[nd.supply_id], qty: merged[nd.supply_id].qty + nd.qty } : nd;
   const list = Object.values(merged).map(nd => ({ ...nd, stock: n(map[nd.supply_id].stock), missing: Math.max(0, nd.qty - n(map[nd.supply_id].stock)) }));
-  return { product: p, qty, cost, needs: list, shortages: list.filter(x => x.missing > 0), cost_total: cost.direct * qty, fid, blend };
+  return { product: p, qty, cost, needs: list, shortages: list.filter(x => x.missing > 0), cost_total: cost.direct * qty, fid, blend, warnings };
 }
 
 router.post('/production', async (req, res) => {
@@ -296,7 +306,7 @@ router.post('/production', async (req, res) => {
     if (req.body.dry_run) {
       const plan = await planProduction(pool, req.body);
       return res.json({ needs: plan.needs, shortages: plan.shortages, cost_total: plan.cost_total, unit_cost: plan.cost.direct, fragrance: plan.cost.fragrance,
-        blend: plan.blend && { name: plan.blend.name, unmatched: plan.blend.unmatched } });
+        blend: plan.blend && { name: plan.blend.name, unmatched: plan.blend.unmatched }, warnings: plan.warnings });
     }
     const out = await tx(async (db) => {
       const plan = await planProduction(db, req.body);

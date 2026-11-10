@@ -829,6 +829,7 @@ function prodPreview() {
         ${prodPlan.needs.map(nd => `<div class="tl-res-row"><span>${escT(nd.name)}</span>
           <strong class="${nd.missing > 0 ? 'text-danger' : ''}">−${fmtQty(nd.qty, nd.unit)}${nd.missing > 0 ? ` <small>(faltan ${fmtQty(nd.missing, nd.unit)})</small>` : ''}</strong></div>`).join('')}
         <div class="tl-res-row sum"><span>Materiales del lote</span><strong>${fmt(prodPlan.cost_total)} <small>(${fmt(prodPlan.unit_cost)} c/u)</small></strong></div>
+        ${(prodPlan.warnings || []).map(w => `<div class="tl-tone tl-bad" style="margin-top:8px">${escT(w)}</div>`).join('')}
         ${prodPlan.blend?.unmatched?.length ? `<div class="tl-tone tl-bad" style="margin-top:8px">No encontré en tus insumos: ${prodPlan.blend.unmatched.map(escT).join(', ')}. Esas no se descuentan (agrégalas en 📦 Insumos como “Esencia …”).</div>` : ''}
       </div>`;
       document.getElementById('pr-btn').textContent = prodPlan.shortages.length ? 'Registrar igual (falta stock)' : 'Registrar producción';

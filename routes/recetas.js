@@ -154,7 +154,7 @@ async function syncSheetToProduct(sh) {
   }
   // Piezas de molde → sus insumos; `extra` = lo que no se puede descontar (esencia "a elección" de una pieza)
   const molds = await moldItemsForSheet(sh, map, settings);
-  for (const { mold, ...it } of molds.items) items.push(it);
+  for (const it of molds.items) items.push(it); // `mold` queda como marca: estos insumos vienen de una pieza de molde
   const extra = molds.extra;
   // Esencia de la vela: promedio de tus esencias (el mismo costo que muestra la ficha cuando el aroma es a elección)
   await pool.query(`

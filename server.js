@@ -50,7 +50,9 @@ app.use((err, req, res, next) => {
 });
 
 // Pedidos que ya estaban entregados: se registran como venta una sola vez
-require('./db/database').ready.then(() => require('./services/stockMode').refreshStatuses()).then(() => require('./services/orderSales').backfill()).catch(e => console.error(e.message));
+require('./db/database').ready.then(() => require('./services/stockMode').refreshStatuses()).then(() => require('./services/orderSales').backfill())
+  .then(() => require('./routes/recetas').syncSheetCosts()) // recetas que mandan el costo: al día con sus piezas de molde
+  .catch(e => console.error(e.message));
 
 app.listen(PORT, () => {
   console.log('\n🕯️  mimo - Sistema de Gestión');
