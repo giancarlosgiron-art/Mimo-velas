@@ -52,8 +52,9 @@ async function tallerTab(tab) {
     if (tab === 'costos') { Taller.recipes = await API.recipes(); renderRecipes(); }
     if (tab === 'aroma') renderAromaCalc();
     if (tab === 'produccion') {
-      const [recipes, productions] = await Promise.all([API.recipes(), API.productions()]);
-      Taller.recipes = recipes; Taller.productions = productions; renderProduction();
+      const [recipes, productions, blends, sheets] = await Promise.all([API.recipes(), API.productions(), API.blends(), API.sheets()]);
+      Object.assign(Taller, { recipes, productions, blends, sheets });
+      renderProduction();
     }
   } catch (err) { el.innerHTML = `<div class="alert alert-danger">${escT(err.message)}</div>`; }
 }
@@ -739,8 +740,11 @@ function renderProduction() {
           <select class="form-control" id="pr-product" onchange="prodChanged()">${withR.map(p => `<option value="${p.id}">${escT(p.name)}</option>`).join('')}</select></div>
         <div class="tl-fields">
           <div class="form-group"><label class="form-label">¿Cuántas hiciste?</label><input class="form-control" id="pr-qty" type="number" min="1" value="1" oninput="prodPreview()" /></div>
-          <div class="form-group" id="pr-ess-wrap"><label class="form-label">Esencia que usaste</label>
-            <select class="form-control" id="pr-ess" onchange="prodPreview()"><option value="">Elige…</option>${essences.map(s => `<option value="${s.id}">${escT(s.name)}</option>`).join('')}</select></div>
+          <div class="form-group" id="pr-ess-wrap"><label class="form-label">Aroma que usaste</label>
+            <select class="form-control" id="pr-ess" onchange="prodPreview()"><option value="">Elige…</option>
+              ${essences.length ? `<optgroup label="Una esencia">${essences.map(s => `<option value="s:${s.id}">${escT(s.name)}</option>`).join('')}</optgroup>` : ''}
+              ${(Taller.blends || []).length ? `<optgroup label="Una combinación (Recetas → Aromas)">${Taller.blends.map(b => `<option value="b:${b.id}">${b.favorite ? '★ ' : ''}${escT(b.name)} · ${(b.parts || []).map(pt => `${escT(pt.aroma)} ${pt.pct}%`).join(' + ')}</option>`).join('')}</optgroup>` : ''}
+            </select></div>
         </div>
         <label class="tl-check"><input type="checkbox" id="pr-stock" checked /> Sumar estas velas al stock de la tienda</label>
         <div class="form-group" style="margin-top:10px"><label class="form-label">Nota</label><input class="form-control" id="pr-notes" placeholder="Opcional: lote, pedido, color…" /></div>
@@ -756,7 +760,7 @@ function renderProduction() {
         ${Taller.productions.length ? Taller.productions.map(p => `
           <div class="dash-row">
             <div><strong>${p.quantity} × ${escT(p.product_name)}</strong><br>
-              <small>${fmtDate(p.created_at)}${p.fragrance_name ? ' · ' + escT(p.fragrance_name) : ''}${p.user_name ? ' · ' + escT(p.user_name) : ''}${p.notes ? ' · ' + escT(p.notes) : ''}${p.added_to_stock ? '' : ' · no sumó stock'}</small></div>
+              <small>${fmtDate(p.created_at)}${p.blend_name ? ' · 🧪 ' + escT(p.blend_name) : p.fragrance_name ? ' · ' + escT(p.fragrance_name) : ''}${p.user_name ? ' · ' + escT(p.user_name) : ''}${p.notes ? ' · ' + escT(p.notes) : ''}${p.added_to_stock ? '' : ' · no sumó stock'}</small></div>
             <div style="display:flex;align-items:center;gap:8px"><small>${fmt(p.cost_total)}</small>
               <button class="btn btn-ghost btn-sm" title="Deshacer" onclick="undoProduction(${p.id})">↩︎</button></div>
           </div>`).join('') : '<div class="empty-state" style="padding:24px"><p>Aún no registras producción</p></div>'}
@@ -769,7 +773,9 @@ function prodChanged() {
   const p = Taller.recipes.products.find(x => x.id === Number(document.getElementById('pr-product').value));
   const needsEss = p && p.cost?.fragrance;
   document.getElementById('pr-ess-wrap').style.display = needsEss ? '' : 'none';
-  if (needsEss && p.recipe.fragrance_supply_id) document.getElementById('pr-ess').value = p.recipe.fragrance_supply_id;
+  // Propone lo de su receta: la combinación de su ficha (Recetas) o la esencia de su costo
+  const sheet = (Taller.sheets || []).find(sh => sh.product_id === p?.id && sh.blend_id);
+  if (needsEss) document.getElementById('pr-ess').value = sheet ? `b:${sheet.blend_id}` : p.recipe.fragrance_supply_id ? `s:${p.recipe.fragrance_supply_id}` : '';
   prodPreview();
 }
 
@@ -781,8 +787,8 @@ function prodPreview() {
     if (!box) return;
     const data = prodData();
     prodPlan = null;
-    if (document.getElementById('pr-ess-wrap').style.display !== 'none' && !data.fragrance_supply_id) {
-      box.innerHTML = '<div class="tl-preview">Elige la esencia para ver lo que se descuenta.</div>'; return;
+    if (document.getElementById('pr-ess-wrap').style.display !== 'none' && !data.fragrance_supply_id && !data.blend_id) {
+      box.innerHTML = '<div class="tl-preview">Elige la esencia o la combinación para ver lo que se descuenta.</div>'; return;
     }
     try {
       prodPlan = await API.produce({ ...data, dry_run: true });
@@ -790,6 +796,7 @@ function prodPreview() {
         ${prodPlan.needs.map(nd => `<div class="tl-res-row"><span>${escT(nd.name)}</span>
           <strong class="${nd.missing > 0 ? 'text-danger' : ''}">−${fmtQty(nd.qty, nd.unit)}${nd.missing > 0 ? ` <small>(faltan ${fmtQty(nd.missing, nd.unit)})</small>` : ''}</strong></div>`).join('')}
         <div class="tl-res-row sum"><span>Materiales del lote</span><strong>${fmt(prodPlan.cost_total)} <small>(${fmt(prodPlan.unit_cost)} c/u)</small></strong></div>
+        ${prodPlan.blend?.unmatched?.length ? `<div class="tl-tone tl-bad" style="margin-top:8px">No encontré en tus insumos: ${prodPlan.blend.unmatched.map(escT).join(', ')}. Esas no se descuentan (agrégalas en 📦 Insumos como “Esencia …”).</div>` : ''}
       </div>`;
       document.getElementById('pr-btn').textContent = prodPlan.shortages.length ? 'Registrar igual (falta stock)' : 'Registrar producción';
     } catch (err) { box.innerHTML = `<div class="alert alert-warning">${escT(err.message)}</div>`; }
@@ -800,7 +807,10 @@ function prodData() {
   return {
     product_id: Number(document.getElementById('pr-product').value),
     quantity: Math.floor(numT(document.getElementById('pr-qty').value)),
-    fragrance_supply_id: Number(document.getElementById('pr-ess').value) || null,
+    ...(() => {
+      const [kind, id] = String(document.getElementById('pr-ess').value || '').split(':');
+      return { fragrance_supply_id: kind === 's' ? Number(id) : null, blend_id: kind === 'b' ? Number(id) : null };
+    })(),
     add_to_stock: document.getElementById('pr-stock').checked,
     notes: document.getElementById('pr-notes').value,
   };

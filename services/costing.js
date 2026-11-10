@@ -84,6 +84,13 @@ function computeRecipe(recipe, suppliesById, settings, salePrice, fragranceId) {
   };
 }
 
+const normName = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+/** Esencia de tus insumos que corresponde a un aroma de una mezcla ("Vainilla" → "Esencia Vainilla 50 ml") */
+function matchEssence(aroma, essences) {
+  const a = normName(aroma);
+  return essences.find(s => normName(s.name).replace(/^esencia\s+/, '') === a) || essences.find(s => normName(s.name).includes(a)) || null;
+}
+
 async function suppliesMap(db = pool) {
   const { rows } = await db.query('SELECT * FROM supplies');
   return Object.fromEntries(rows.map(s => [s.id, s]));
@@ -100,4 +107,5 @@ async function syncProductCosts(db = pool) {
   }
 }
 
-module.exports = { DEFAULT_SETTINGS, getSettings, computeRecipe, suppliesMap, syncProductCosts, gramsToUnit, costPerGram };
+module.exports = {
+  matchEssence, DEFAULT_SETTINGS, getSettings, computeRecipe, suppliesMap, syncProductCosts, gramsToUnit, costPerGram };

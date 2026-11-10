@@ -140,6 +140,8 @@ async function initSchema() {
       fragrance_supply_id INTEGER, fragrance_name TEXT, cost_total REAL DEFAULT 0, added_to_stock INTEGER DEFAULT 1,
       notes TEXT, user_id INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+    ALTER TABLE productions ADD COLUMN IF NOT EXISTS blend_id INTEGER;
+    ALTER TABLE productions ADD COLUMN IF NOT EXISTS blend_name TEXT;
     DELETE FROM order_items WHERE order_id NOT IN (SELECT id FROM orders);
     DELETE FROM notifications n WHERE n.link = '/orders' AND substring(n.title from '#([0-9]+)') IS NOT NULL
       AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.id = substring(n.title from '#([0-9]+)')::int);

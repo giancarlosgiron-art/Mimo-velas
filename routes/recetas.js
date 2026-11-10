@@ -81,12 +81,7 @@ router.delete('/blends/:id', async (req, res) => {
 });
 
 // ── Fichas (recetas de velas y moldes) ───────────────────────────
-const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
-/** Esencia del taller que corresponde a un aroma de la mezcla ("Vainilla" → "Esencia Vainilla 50 ml") */
-function matchEssence(aroma, essences) {
-  const a = norm(aroma);
-  return essences.find(s => norm(s.name).replace(/^esencia\s+/, '') === a) || essences.find(s => norm(s.name).includes(a)) || null;
-}
+const matchEssence = C.matchEssence;
 
 /** Costo y cantidades de una ficha (por tanda y por vela/pieza) */
 function computeSheet(sh, map, settings, blend) {

@@ -234,25 +234,49 @@ async function planProduction(db, b) {
   if (p.items == null) throw Object.assign(new Error(`"${p.name}" no tiene receta todavía. Créala en Taller → Costos por vela`), { status: 400 });
   const [settings, map] = await Promise.all([C.getSettings(db), C.suppliesMap(db)]);
   const fid = Number(b.fragrance_supply_id) || p.fragrance_supply_id || null;
-  const cost = C.computeRecipe(p, map, settings, p.sale_price, fid);
+  const blendId = Number(b.blend_id) || null;
+  const cost = C.computeRecipe(p, map, settings, p.sale_price, blendId ? null : fid);
   const needs = cost.lines.map(l => ({ supply_id: l.supply_id, name: l.name, unit: l.unit, qty: l.qty * qty }));
-  if (cost.fragrance) {
-    if (!cost.fragrance.supply_id) throw Object.assign(new Error('Elige qué esencia usaste'), { status: 400 });
+  let blend = null;
+  if (cost.fragrance && blendId) {
+    // Combinación de aromas: cada esencia de la mezcla se descuenta según su porcentaje
+    const { rows: br } = await db.query('SELECT id, name, parts FROM fragrance_blends WHERE id=$1', [blendId]);
+    if (!br[0]) throw Object.assign(new Error('Esa combinación ya no existe'), { status: 404 });
+    const essences = Object.values(map).filter(s => s.kind === 'esencia');
+    const avg = (() => { const e = essences.filter(s => n(s.unit_cost) > 0); return e.length ? e.reduce((a, s) => a + C.costPerGram(s, settings.density), 0) / e.length : 0; })();
+    const parts = (br[0].parts || []).map(pt => {
+      const s = C.matchEssence(pt.aroma, essences);
+      const grams = cost.fragrance.grams * n(pt.pct) / 100;
+      return { aroma: pt.aroma, pct: n(pt.pct), grams, supply_id: s?.id || null, name: s?.name || null,
+        cost: grams * (s && n(s.unit_cost) ? C.costPerGram(s, settings.density) : avg) };
+    });
+    for (const pt of parts) if (pt.supply_id) {
+      const s = map[pt.supply_id];
+      needs.push({ supply_id: s.id, name: `${s.name} (${pt.pct}%)`, unit: s.unit, qty: C.gramsToUnit(s, pt.grams * qty, settings.density) });
+    }
+    // El costo de la esencia pasa a ser el de la mezcla
+    const blendCost = parts.reduce((a, pt) => a + pt.cost, 0);
+    cost.direct += blendCost - cost.fragrance.cost;
+    cost.fragrance = { ...cost.fragrance, supply_id: null, name: br[0].name, cost: blendCost };
+    blend = { id: br[0].id, name: br[0].name, parts, unmatched: parts.filter(pt => !pt.supply_id).map(pt => pt.aroma) };
+  } else if (cost.fragrance) {
+    if (!cost.fragrance.supply_id) throw Object.assign(new Error('Elige qué esencia o combinación usaste'), { status: 400 });
     const s = map[cost.fragrance.supply_id];
     needs.push({ supply_id: s.id, name: s.name, unit: s.unit, qty: C.gramsToUnit(s, cost.fragrance.grams * qty, settings.density) });
   }
   // Si una esencia o insumo se repite, se junta
   const merged = {};
-  for (const nd of needs) merged[nd.supply_id] = merged[nd.supply_id] ? { ...nd, qty: merged[nd.supply_id].qty + nd.qty } : nd;
+  for (const nd of needs) merged[nd.supply_id] = merged[nd.supply_id] ? { ...merged[nd.supply_id], qty: merged[nd.supply_id].qty + nd.qty } : nd;
   const list = Object.values(merged).map(nd => ({ ...nd, stock: n(map[nd.supply_id].stock), missing: Math.max(0, nd.qty - n(map[nd.supply_id].stock)) }));
-  return { product: p, qty, cost, needs: list, shortages: list.filter(x => x.missing > 0), cost_total: cost.direct * qty, fid };
+  return { product: p, qty, cost, needs: list, shortages: list.filter(x => x.missing > 0), cost_total: cost.direct * qty, fid, blend };
 }
 
 router.post('/production', async (req, res) => {
   try {
     if (req.body.dry_run) {
       const plan = await planProduction(pool, req.body);
-      return res.json({ needs: plan.needs, shortages: plan.shortages, cost_total: plan.cost_total, unit_cost: plan.cost.direct, fragrance: plan.cost.fragrance });
+      return res.json({ needs: plan.needs, shortages: plan.shortages, cost_total: plan.cost_total, unit_cost: plan.cost.direct, fragrance: plan.cost.fragrance,
+        blend: plan.blend && { name: plan.blend.name, unmatched: plan.blend.unmatched } });
     }
     const out = await tx(async (db) => {
       const plan = await planProduction(db, req.body);
@@ -261,9 +285,10 @@ router.post('/production', async (req, res) => {
       const addStock = req.body.add_to_stock !== false;
       const fname = plan.cost.fragrance ? plan.cost.fragrance.name : null;
       const { rows } = await db.query(
-        `INSERT INTO productions (product_id,product_name,quantity,fragrance_supply_id,fragrance_name,cost_total,added_to_stock,notes,user_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-        [plan.product.id, plan.product.name, plan.qty, plan.cost.fragrance?.supply_id || null, fname, plan.cost_total, addStock ? 1 : 0, txt(req.body.notes), uid(req)]);
+        `INSERT INTO productions (product_id,product_name,quantity,fragrance_supply_id,fragrance_name,cost_total,added_to_stock,notes,user_id,blend_id,blend_name)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+        [plan.product.id, plan.product.name, plan.qty, plan.cost.fragrance?.supply_id || null, fname, plan.cost_total, addStock ? 1 : 0, txt(req.body.notes), uid(req),
+          plan.blend?.id || null, plan.blend?.name || null]);
       const prod = rows[0];
       for (const nd of plan.needs) {
         await db.query('UPDATE supplies SET stock=stock-$1, updated_at=NOW() WHERE id=$2', [nd.qty, nd.supply_id]);
